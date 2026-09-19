@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+*.py[cod]
+*$py.class
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# User-specific reports or logs
+reports/*.log
+reports/debug.txt
+
+# Local temporary files
+*.tmp
+*.bak
+*~
+
+# Exclude large APK binaries from git if unwanted
+# apks/*.apk
+
+# .NET build output（只忽略 src 下的编译产物；vendor/ 里的内置 adb 需要提交）
+/src/**/bin/
+/src/**/obj/
+/dist/
+*.user
+*.suo
+.vs/
+.packages/

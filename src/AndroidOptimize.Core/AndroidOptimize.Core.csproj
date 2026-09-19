@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>AndroidOptimize.Core</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\data\packages.json" Link="Data\packages.json" />
+    <EmbeddedResource Include="..\..\data\protected.json" Link="Data\protected.json" />
+  </ItemGroup>
+
+  <!--
+    把 adb 打进程序集，首次运行时释放到 %LOCALAPPDATA%\AndroidOptimize\platform-tools。
+    这样发布出去可以是单个 exe，用户不需要额外准备任何文件。
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\vendor\platform-tools\adb.exe" Link="Adb\adb.exe" />
+    <EmbeddedResource Include="..\..\vendor\platform-tools\AdbWinApi.dll" Link="Adb\AdbWinApi.dll" />
+    <EmbeddedResource Include="..\..\vendor\platform-tools\AdbWinUsbApi.dll" Link="Adb\AdbWinUsbApi.dll" />
+  </ItemGroup>
+
+</Project>

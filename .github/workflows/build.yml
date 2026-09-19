@@ -1,0 +1,41 @@
+name: 构建与自检
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: 编译
+        run: dotnet build AndroidOptimize.slnx -c Release --nologo
+
+      - name: 核心逻辑自检
+        shell: pwsh
+        run: |
+          $exe = "src\AndroidOptimize.App\bin\Release\net8.0-windows\AndroidOptimize.exe"
+          if (-not (Test-Path $exe)) { throw "没有找到已编译的程序：$exe" }
+          $out = Join-Path $env:TEMP "selftest.txt"
+          Start-Process -FilePath $exe -ArgumentList @("--selftest", $out) -Wait
+          Get-Content $out -Encoding UTF8
+          if (-not (Select-String -Path $out -Pattern "全部通过" -Quiet)) {
+            throw "自检未全部通过，请检查名单或计划逻辑。"
+          }
+
+      - name: 界面加载检查
+        shell: pwsh
+        run: |
+          $exe = "src\AndroidOptimize.App\bin\Release\net8.0-windows\AndroidOptimize.exe"
+          $out = Join-Path $env:TEMP "uicheck.txt"
+          Start-Process -FilePath $exe -ArgumentList @("--uicheck", $out) -Wait
+          Get-Content $out -Encoding UTF8

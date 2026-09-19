@@ -1,0 +1,63 @@
+name: 发布 Release
+
+# 打一个 v 开头的 tag 就会自动编译单文件 exe 并挂到 Release 上。
+# 例：git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（例如 0.1.0）"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: 解析版本号
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $v = "${{ github.event.inputs.version }}"
+          } else {
+            $v = "${{ github.ref_name }}".TrimStart("v")
+          }
+          if (-not $v) { throw "没有解析到版本号。" }
+          "value=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "版本号：$v"
+
+      - name: 打包单文件 exe
+        shell: pwsh
+        run: .\tools\publish.ps1 -Version "${{ steps.version.outputs.value }}"
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: AndroidOptimize-${{ steps.version.outputs.value }}
+          path: dist/single/*.exe
+
+      - name: 创建或更新 Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "v${{ steps.version.outputs.value }}"
+          $exe = (Get-ChildItem dist/single/*.exe | Select-Object -First 1).FullName
+          Write-Host "上传 $exe 到 $tag"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "安卓优化助手 ${{ steps.version.outputs.value }}" --generate-notes
+          }
+          gh release upload $tag $exe --clobber
