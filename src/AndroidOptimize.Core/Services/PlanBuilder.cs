@@ -10,6 +10,9 @@ public sealed record PlanRequest
     public required OptimizationTier Tier { get; init; }
     public PlanOptions Options { get; init; } = new();
     public IReadOnlyList<PackageClassification> AiSuggestions { get; init; } = [];
+
+    /// <summary>离线名册。为空时按「没有名册」处理，不影响其它逻辑。</summary>
+    public AppCatalog? Catalog { get; init; }
 }
 
 /// <summary>
@@ -28,6 +31,12 @@ public sealed class PlanBuilder
         var skipped = new List<SkippedItem>();
         var minimumConfidence = request.Options.MinConfidence(request.Tier);
         var tokens = request.Device.BrandTokens;
+
+        // 权限画像只用于展示与筛选，不参与任何自动勾选。
+        var permissionRisks = request.Rules.RuleSet.PermissionRisks;
+        var permissionCombos = request.Rules.RuleSet.PermissionCombos;
+        AppPermissionProfile ProfileOf(PackageEntry? entry) =>
+            PermissionAdvice.Build(entry?.Permissions, permissionRisks, permissionCombos);
 
         // 只记录「已经有 AI 结论」的包：这些不该再被当成未知应用重复列一次。
         // 注意策略（如传感器权限）不算——它只限制了某个权限，并没有说明这个应用是什么。
@@ -135,6 +144,8 @@ public sealed class PlanBuilder
                 Impact = impact,
                 Source = "list",
                 PresenceBefore = presence,
+                IsSystem = entry?.IsSystem ?? false,
+                PermissionProfile = ProfileOf(entry),
                 AppOps = mergedOps,
                 StandbyBucket = rule.StandbyBucket,
                 IsSelected = DefaultSelected(rule, request.Tier, isSetting: false),
@@ -156,7 +167,8 @@ public sealed class PlanBuilder
                 Key = "policy:" + primary.Id + ":" + packageName,
                 Kind = PlanItemKind.Policy,
                 Target = packageName,
-                DisplayName = entry.IsSystem ? packageName : packageName,
+                // 和别的条目一样优先用读到的应用名——只显示包名的话，用户根本认不出这是哪个应用。
+                DisplayName = entry.Label ?? packageName,
                 Category = primary.Category,
                 Action = PackageAction.Restrict,
                 Risk = primary.Risk,
@@ -166,6 +178,8 @@ public sealed class PlanBuilder
                 Impact = primary.Impact,
                 Source = "policy",
                 PresenceBefore = entry.Presence,
+                IsSystem = entry.IsSystem,
+                PermissionProfile = ProfileOf(entry),
                 AppOps = ops,
                 StandbyBucket = primary.StandbyBucket,
                 IsSelected = primary.Risk != RiskLevel.High,
@@ -255,7 +269,7 @@ public sealed class PlanBuilder
                 Key = "ai:" + suggestion.PackageName,
                 Kind = PlanItemKind.AiSuggestion,
                 Target = suggestion.PackageName,
-                DisplayName = suggestion.PackageName,
+                DisplayName = entry.Label ?? suggestion.PackageName,
                 Category = suggestion.Category,
                 Action = action,
                 Risk = suggestion.Confidence >= 0.9 ? RiskLevel.Low : RiskLevel.Medium,
@@ -265,6 +279,8 @@ public sealed class PlanBuilder
                 Impact = "这是自动识别结果，未经人工复核。请确认这个应用对使用者无用后再勾选。",
                 Source = suggestion.Source,
                 PresenceBefore = entry.Presence,
+                IsSystem = entry.IsSystem,
+                PermissionProfile = ProfileOf(entry),
                 InstalledAt = entry.FirstInstallTime,
                 Installer = entry.Installer,
                 IsSelected = false, // AI 建议永远默认不勾选
@@ -279,41 +295,86 @@ public sealed class PlanBuilder
         {
             foreach (var entry in request.Snapshot.InstalledPackages)
             {
-                if (!entry.IsThirdParty) continue;
                 if (aiCovered.Contains(entry.Name)) continue;
                 if (request.Rules.MatchProtection(entry.Name).IsProtected) continue;
                 // 名单里有记录的（哪怕这条规则当前档位不处理、或置信度不够）都不算「未知」——
                 // 程序知道它是什么，只是这一档不动它。
                 if (request.Rules.FindPackageRule(entry.Name, tokens) is not null) continue;
-                // 名单外的正常应用（地图、健康、出行、办公等）也不算「未知」。
-                if (request.Rules.IsCommonApp(entry.Name)) continue;
 
+                var catalogEntry = request.Catalog?.Find(entry.Name);
+                if (catalogEntry is not null)
+                {
+                    // 名册里有资料。只有社区明确说「可以安全移除」的才默认勾选；
+                    // expert / unsafe 不进计划——它们是「不要动」，列进来只会造成困扰。
+                    if (!RemovalAdvice.IsActionable(catalogEntry.Removal, request.Tier)) continue;
+
+                    items.Add(new PlanItem
+                    {
+                        Key = "catalog:" + entry.Name,
+                        Kind = PlanItemKind.Catalog,
+                        Target = entry.Name,
+                        DisplayName = entry.Label ?? entry.Name,
+                        Category = "名册收录",
+                        Action = request.Options.UnknownPackageAction,
+                        Risk = RiskFromRemoval(catalogEntry.Removal),
+                        Tier = request.Tier,
+                        Confidence = RemovalAdvice.Normalize(catalogEntry.Removal) == RemovalAdvice.Recommended ? 0.85 : 0.6,
+                        Reason = catalogEntry.Display,
+                        Impact = BuildCatalogImpact(catalogEntry.Removal, entry.HasLauncher),
+                        Source = "catalog",
+                        PresenceBefore = entry.Presence,
+                        IsSystem = entry.IsSystem,
+                        PermissionProfile = ProfileOf(entry),
+                        InstalledAt = entry.FirstInstallTime,
+                        Installer = entry.Installer,
+                        NeverLaunched = entry.NeverLaunched,
+                        HasLauncher = entry.HasLauncher,
+                        Removal = catalogEntry.Removal,
+                        IsSelected = RemovalAdvice.IsSelectedByDefault(catalogEntry.Removal, entry.HasLauncher),
+                    });
+                    continue;
+                }
+
+                // 名册里也没有：只有第三方应用才值得列出来（系统应用没资料就不要碰）。
+                if (!entry.IsThirdParty) continue;
                 items.Add(new PlanItem
                 {
                     Key = "unknown:" + entry.Name,
                     Kind = PlanItemKind.Unknown,
                     Target = entry.Name,
-                    DisplayName = entry.Name,
+                    DisplayName = entry.Label ?? entry.Name,
                     Category = "未知应用",
                     Action = request.Options.UnknownPackageAction,
                     Risk = RiskLevel.Medium,
                     Tier = request.Tier,
                     Confidence = 0.3,
                     Reason = DescribeUnknown(entry),
-                    Impact = "名单里没有这个应用，程序无法判断它的用途。默认用「停用」而不是「卸载」——"
+                    Impact = "名单和离线名册里都没有这个应用，程序无法判断它的用途。默认用「停用」而不是「卸载」——"
                              + "停用后它不能再运行、不会再弹广告，而且随时可以在「回滚」页一键还原。",
                     Source = "unknown",
                     PresenceBefore = entry.Presence,
+                    IsSystem = entry.IsSystem,
+                    PermissionProfile = ProfileOf(entry),
                     InstalledAt = entry.FirstInstallTime,
                     Installer = entry.Installer,
                     NeverLaunched = entry.NeverLaunched,
+                    HasLauncher = entry.HasLauncher,
                     IsSelected = false,
                 });
             }
         }
 
         var ordered = items
-            .OrderBy(i => i.Kind)
+            // 名册条目紧跟名单条目：它们是「扫完就会被勾上」的主要内容，必须显眼。
+            .OrderBy(i => i.Kind switch
+            {
+                PlanItemKind.Package => 0,
+                PlanItemKind.Catalog => 1,
+                PlanItemKind.Setting => 2,
+                PlanItemKind.Policy => 3,
+                PlanItemKind.AiSuggestion => 4,
+                _ => 5,
+            })
             // 未知应用排序：先「从未被打开过」的（最像垃圾），再按安装时间倒序（最近装的更可疑）。
             .ThenByDescending(i => i.Kind == PlanItemKind.Unknown ? (i.NeverLaunched == true ? 1 : 0) : 0)
             .ThenByDescending(i => i.Kind == PlanItemKind.Unknown ? i.InstalledAt : null)
@@ -364,39 +425,30 @@ public sealed class PlanBuilder
         return string.Join("  ", parts);
     }
 
-    /// <summary>
-    /// 懒人模式：把「必须保留清单」之外的项目全部选中，白名单内的一律不选。
-    /// 不做任何猜测——判断依据完全来自名单里的 <c>lazyMode.keep</c> 与保护名单。
-    /// 返回被保留下来的项目名称，供界面提示用。
-    /// </summary>
-    public static IReadOnlyList<string> ApplyLazyMode(OptimizationPlan plan, RuleRepository rules)
+    private static RiskLevel RiskFromRemoval(string? removal) => RemovalAdvice.Normalize(removal) switch
     {
-        ArgumentNullException.ThrowIfNull(plan);
-        ArgumentNullException.ThrowIfNull(rules);
+        RemovalAdvice.Recommended => RiskLevel.Low,
+        RemovalAdvice.Advanced => RiskLevel.Medium,
+        _ => RiskLevel.High,
+    };
 
-        var kept = new List<string>();
-        foreach (var item in plan.Items.Where(i => i.IsSelectable))
+    private static string BuildCatalogImpact(string? removal, bool? hasLauncher)
+    {
+        var normalized = RemovalAdvice.Normalize(removal);
+        const string attribution = "结论来自 UAD（Universal Android Debloater）社区，不是本项目的判断。";
+
+        if (normalized == RemovalAdvice.Recommended)
         {
-            // 设置项（动画缩放之类）不是应用，懒人模式不参与判断，一律沿用默认勾选。
-            if (item.Kind == PlanItemKind.Setting)
-            {
-                item.IsSelected = true;
-                continue;
-            }
-
-            if (rules.IsLazyModeKeep(item.Target))
-            {
-                item.IsSelected = false;
-                kept.Add(item.DisplayName);
-                continue;
-            }
-
-            item.IsSelected = true;
+            return hasLauncher == false
+                ? $"{attribution}这个应用在桌面上没有图标，用户打不开它，通常是后台的推广或统计组件。"
+                  + "处理方式是停用：不能运行、随时可在「回滚」页还原。"
+                : $"{attribution}它在桌面上有图标，使用者可能在用，所以默认不勾选——请自行确认。";
         }
 
-        return kept;
+        return normalized == RemovalAdvice.Advanced
+            ? $"{attribution}社区认为可以移除，但需要先确认：可能有依赖它的功能会受影响。"
+            : $"{attribution}社区不建议普通用户移除。";
     }
-
     /// <summary>
     /// 挑出需要识别的未知应用：已安装的第三方应用、名单里没有记录、且不在保护名单里。
     /// 优先挑最近安装的（越近越可能是被强行装上的）。

@@ -9,6 +9,18 @@ public sealed record SnapshotEntry
     public PackagePresence PresenceBefore { get; init; } = PackagePresence.Unknown;
     public bool WasDisabled { get; init; }
 
+    /// <summary>执行时这个包是不是系统预装应用（决定卸载后还能不能用 install-existing 装回来）。</summary>
+    public bool IsSystem { get; init; }
+
+    /// <summary>
+    /// 卸载前备份的安装包目录（相对用户数据目录）。空 = 没备份。
+    /// 商店安装的应用卸载后安装包会被系统删掉，只有备份才能装回来。
+    /// </summary>
+    public string? ApkBackupDirectory { get; init; }
+
+    /// <summary>备份占用的字节数，界面上显示给用户看。</summary>
+    public long ApkBackupBytes { get; init; }
+
     /// <summary>设置项修改前的原始值，key 为 "namespace/key"。</summary>
     public Dictionary<string, string?> SettingsBefore { get; init; } = new();
 

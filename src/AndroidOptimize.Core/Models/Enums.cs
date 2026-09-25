@@ -58,6 +58,8 @@ public enum PlanItemKind
     /// 程序不知道它是干什么的，所以永远默认不勾选，只在用户主动点「选中未知应用」时才处理。
     /// </summary>
     Unknown = 4,
+    /// <summary>离线名册（app-catalog.json）里有资料的应用：知道它是什么，也有社区的清理结论。</summary>
+    Catalog = 5,
 }
 
 public enum ProtectionLevel

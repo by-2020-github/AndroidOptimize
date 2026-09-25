@@ -7,12 +7,13 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>AndroidOptimize.Core</RootNamespace>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\data\packages.json" Link="Data\packages.json" />
     <EmbeddedResource Include="..\..\data\protected.json" Link="Data\protected.json" />
+    <EmbeddedResource Include="..\..\data\app-catalog.json" Link="Data\app-catalog.json" />
   </ItemGroup>
 
   <!--

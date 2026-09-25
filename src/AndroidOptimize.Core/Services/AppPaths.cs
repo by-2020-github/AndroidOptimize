@@ -12,9 +12,19 @@ public static class AppPaths
     public static string SnapshotsDir => Path.Combine(UserRoot, "snapshots");
     public static string ReportsDir => Path.Combine(UserRoot, "reports");
     public static string LogsDir => Path.Combine(UserRoot, "logs");
+    public static string DevicesDir => Path.Combine(UserRoot, "devices");
     public static string UserDataDir => Path.Combine(UserRoot, "data");
-    public static string SettingsFile => Path.Combine(UserRoot, "settings.json");
+    /// <summary>
+    /// 设置文件位置。截图/演示流程会把它指到临时目录，
+    /// 免得生成的文档截图上带着开发者本机改过的开关（默认状态才对读者有意义）。
+    /// </summary>
+    public static string? SettingsPathOverride { get; set; }
+
+    public static string SettingsFile => SettingsPathOverride ?? Path.Combine(UserRoot, "settings.json");
     public static string AiCacheFile => Path.Combine(UserRoot, "ai-cache.json");
+    public static string LabelCacheFile => Path.Combine(UserRoot, "label-cache.json");
+    /// <summary>安装来源与权限列表的缓存（key = 包名@版本号）。</summary>
+    public static string DetailCacheFile => Path.Combine(UserRoot, "detail-cache.json");
     public static string PlatformToolsDir => Path.Combine(UserRoot, "platform-tools");
 
     public static void EnsureCreated()
@@ -23,22 +33,40 @@ public static class AppPaths
         Directory.CreateDirectory(SnapshotsDir);
         Directory.CreateDirectory(ReportsDir);
         Directory.CreateDirectory(LogsDir);
+        Directory.CreateDirectory(DevicesDir);
     }
 
-    public static string NewSnapshotPath(string deviceLabel)
+    /// <summary>每台手机一个目录，按序列号分：devices\&lt;序列号&gt;\。</summary>
+    public static string DeviceDirectory(string serial) =>
+        Path.Combine(DevicesDir, Sanitize(string.IsNullOrWhiteSpace(serial) ? "未知设备" : serial));
+
+    public static string DeviceScansDir(string serial) => Path.Combine(DeviceDirectory(serial), "scans");
+    public static string DeviceExecutionsDir(string serial) => Path.Combine(DeviceDirectory(serial), "executions");
+    public static string DeviceSnapshotsDir(string serial) => Path.Combine(DeviceDirectory(serial), "snapshots");
+    public static string DeviceReportsDir(string serial) => Path.Combine(DeviceDirectory(serial), "reports");
+
+    public static string NewSnapshotPath(string deviceLabel, string? serial = null)
     {
         EnsureCreated();
         var safeLabel = Sanitize(deviceLabel);
         var name = $"{DateTime.Now:yyyyMMdd-HHmmss}-{safeLabel}.json";
-        return Path.Combine(SnapshotsDir, name);
+        if (string.IsNullOrWhiteSpace(serial)) return Path.Combine(SnapshotsDir, name);
+
+        var directory = DeviceSnapshotsDir(serial);
+        Directory.CreateDirectory(directory);
+        return Path.Combine(directory, name);
     }
 
-    public static string NewReportPath(string deviceLabel, string extension = "md")
+    public static string NewReportPath(string deviceLabel, string extension = "md", string? serial = null)
     {
         EnsureCreated();
         var safeLabel = Sanitize(deviceLabel);
         var name = $"{DateTime.Now:yyyyMMdd-HHmmss}-优化报告-{safeLabel}.{extension}";
-        return Path.Combine(ReportsDir, name);
+        if (string.IsNullOrWhiteSpace(serial)) return Path.Combine(ReportsDir, name);
+
+        var directory = DeviceReportsDir(serial);
+        Directory.CreateDirectory(directory);
+        return Path.Combine(directory, name);
     }
 
     public static string NewLogPath(string prefix = "run")
@@ -47,7 +75,8 @@ public static class AppPaths
         return Path.Combine(LogsDir, $"{DateTime.Now:yyyyMMdd-HHmmss}-{prefix}.log");
     }
 
-    private static string Sanitize(string value)
+    /// <summary>把字符串变成安全的目录名（序列号、设备名都可能带奇怪字符）。</summary>
+    internal static string Sanitize(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return "device";
         var invalid = Path.GetInvalidFileNameChars();

@@ -41,6 +41,8 @@ public sealed class SimulatedAdbClient : AdbClient
                 VersionName = p.VersionName ?? "1.0.0",
                 FirstInstall = p.FirstInstall,
                 NeverLaunched = p.NeverLaunched,
+                HasLauncher = p.HasLauncher,
+                Permissions = p.Permissions,
             },
             StringComparer.OrdinalIgnoreCase);
 
@@ -62,6 +64,9 @@ public sealed class SimulatedAdbClient : AdbClient
         _appOps.TryGetValue($"{package}|{op}", out var mode) ? mode : null;
     public string? GetStandbyBucket(string package) =>
         _standbyBuckets.TryGetValue(package, out var bucket) ? bucket : null;
+
+    /// <summary>模拟设备上各应用的桌面显示名，供演示模式下的「读取应用名」使用。</summary>
+    public IReadOnlyDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
 
     public override Task<AdbResult> RunRawAsync(IReadOnlyList<string> arguments, TimeSpan timeout, CancellationToken ct)
     {
@@ -88,6 +93,31 @@ public sealed class SimulatedAdbClient : AdbClient
         {
             return Task.FromResult(SimulateShell(commandLine, args[1]));
         }
+        if (args[0] == "pull" && args.Count >= 3)
+        {
+            // 模拟「把安装包拉到电脑上」：写一个占位文件，让备份流程能跑通
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(args[2])!);
+                File.WriteAllBytes(args[2], new byte[2048]);
+                return Task.FromResult(Ok(commandLine, "1 file pulled. 0 files skipped."));
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult(Fail(commandLine, ex.Message));
+            }
+        }
+        if ((args[0] == "install" || args[0] == "install-multiple") && args.Count >= 2)
+        {
+            // 备份目录名就是包名（devices\<序列号>\apk-backup\<包名>\xxx.apk）
+            var package = args.Skip(1)
+                .Where(a => a.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
+                .Select(a => new DirectoryInfo(Path.GetDirectoryName(a)!).Name)
+                .FirstOrDefault();
+            return Task.FromResult(string.IsNullOrWhiteSpace(package)
+                ? Fail(commandLine, "无法从文件路径推断包名")
+                : InstallFromBackup(commandLine, package));
+        }
 
         return Task.FromResult(Fail(commandLine, $"未知命令：{commandLine}"));
     }
@@ -98,6 +128,7 @@ public sealed class SimulatedAdbClient : AdbClient
 
         if (text.StartsWith("getprop", StringComparison.Ordinal)) return Ok(commandLine, Properties);
         if (text.StartsWith("pm list packages", StringComparison.Ordinal)) return Ok(commandLine, ListPackages(text));
+        if (text.StartsWith("pm path ", StringComparison.Ordinal)) return PmPath(commandLine, text[8..].Trim());
         if (text.StartsWith("dumpsys package ", StringComparison.Ordinal)) return Ok(commandLine, DumpPackage(text[16..].Trim()));
         if (text.StartsWith("pm disable-user --user 0 ", StringComparison.Ordinal)) return SetDisabled(commandLine, text[25..].Trim(), true);
         if (text.StartsWith("pm disable --user 0 ", StringComparison.Ordinal)) return SetDisabled(commandLine, text[20..].Trim(), true);
@@ -113,6 +144,28 @@ public sealed class SimulatedAdbClient : AdbClient
         if (text.StartsWith("settings delete ", StringComparison.Ordinal)) return DeleteSetting(commandLine, text[16..].Trim());
 
         return Fail(commandLine, $"模拟器未实现：{text}");
+    }
+
+    /// <summary>安装包路径：已安装的包给一个 /data/app 下的假路径，未安装的什么都不返回。</summary>
+    private AdbResult PmPath(string commandLine, string package) =>
+        _packages.ContainsKey(package)
+            ? Ok(commandLine, $"package:/data/app/{package}/base.apk")
+            : Ok(commandLine, string.Empty);
+
+    /// <summary>用备份装回来：模拟 install / install-multiple。</summary>
+    private AdbResult InstallFromBackup(string commandLine, string package)
+    {
+        if (!_removedHistory.TryGetValue(package, out var state))
+        {
+            _packages[package] = new PackageState(package, isSystem: false, disabled: false);
+        }
+        else
+        {
+            _packages[package] = state;
+            _removedHistory.Remove(package);
+        }
+
+        return Ok(commandLine, "Success");
     }
 
     private AdbResult SetDisabled(string commandLine, string package, bool disabled)
@@ -260,6 +313,28 @@ public sealed class SimulatedAdbClient : AdbClient
         var notLaunched = state.NeverLaunched is null ? string.Empty : $" notLaunched={state.NeverLaunched.Value.ToString().ToLowerInvariant()}";
         builder.AppendLine($"  User 0: ceDataInode=12345 installed=true hidden=false suspended=false stopped=false" +
                            $"{notLaunched} enabled={(state.Disabled ? 3 : 0)}");
+        if (state.Permissions is { Count: > 0 })
+        {
+            // 真机上有两种排版：老版本是纯权限名，Android 13+ 会带 ": granted=..."。
+            // 两种都由 PermissionsWithGrantSuffix 决定，用来验证解析器都能吃下。
+            builder.AppendLine("  requested permissions:");
+            foreach (var permission in state.Permissions)
+            {
+                builder.AppendLine(state.PermissionsWithGrantSuffix
+                    ? $"    {permission}: granted=true"
+                    : $"    {permission}");
+            }
+            builder.AppendLine("  install permissions:");
+            builder.AppendLine("    android.permission.INTERNET");
+        }
+        if (state.HasLauncher)
+        {
+            // 真实 dumpsys 里，有桌面图标的应用会带这个类别
+            builder.AppendLine("  Activity Resolver Table:");
+            builder.AppendLine($"    {package}/.MainActivity filter 8b3a1c2");
+            builder.AppendLine("      Action: \"android.intent.action.MAIN\"");
+            builder.AppendLine("      Category: \"android.intent.category.LAUNCHER\"");
+        }
         return builder.ToString();
     }
 
@@ -301,7 +376,15 @@ public sealed class SimulatedAdbClient : AdbClient
         string? VersionName = null,
         string? FirstInstall = null,
         /// <summary>模拟 dumpsys 里的 notLaunched；null 表示这台设备不输出该字段。</summary>
-        bool? NeverLaunched = null);
+        bool? NeverLaunched = null,
+        /// <summary>应用在桌面上的显示名。</summary>
+        string? Label = null,
+        /// <summary>桌面上有没有图标。默认 true（模拟设备里绝大多数应用都有图标）。</summary>
+        bool HasLauncher = true,
+        /// <summary>申请权限的几种典型权限，null 表示这台设备没给出权限列表。</summary>
+        IReadOnlyList<string>? Permissions = null,
+        /// <summary>dumpsys 是否用 Android 13+ 的「权限名: granted=true」排版。</summary>
+        bool PermissionsWithGrantSuffix = true);
 
     public sealed class PackageState(string name, bool isSystem, bool disabled)
     {
@@ -313,5 +396,11 @@ public sealed class SimulatedAdbClient : AdbClient
         public string? FirstInstall { get; init; }
         /// <summary>模拟 dumpsys 里的 notLaunched 字段；null 表示这台设备不输出该字段。</summary>
         public bool? NeverLaunched { get; set; }
+        /// <summary>模拟桌面上有没有图标。</summary>
+        public bool HasLauncher { get; init; } = true;
+        /// <summary>模拟应用申请的权限；null 表示这台设备不输出 requested permissions 段。</summary>
+        public IReadOnlyList<string>? Permissions { get; init; }
+        /// <summary>模拟 Android 13+ 的权限排版。</summary>
+        public bool PermissionsWithGrantSuffix { get; init; } = true;
     }
 }

@@ -16,9 +16,12 @@
         <conv:InverseBooleanConverter x:Key="InverseBool" />
         <conv:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
         <conv:RiskToBrushConverter x:Key="RiskBrush" />
+        <conv:PermissionToBrushConverter x:Key="PermissionBrush" />
+        <conv:RestorabilityToBrushConverter x:Key="RestoreBrush" />
         <conv:StatusToBrushConverter x:Key="StatusBrush" />
         <conv:LogLevelToBrushConverter x:Key="LogBrush" />
         <conv:SourceToBrushConverter x:Key="SourceBrush" />
+        <conv:AdviceToBrushConverter x:Key="AdviceBrush" />
 
         <Style x:Key="SectionTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14" />
@@ -43,6 +46,14 @@
         <Style x:Key="GridCellCentered" TargetType="TextBlock" BasedOn="{StaticResource GridCellText}">
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="Margin" Value="2,0" />
+        </Style>
+
+        <!-- 筛选下拉前面的小标签。Material 的浮动提示在表格上方会被挤掉，直接写死标签更清楚 -->
+        <Style x:Key="FilterLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="Margin" Value="10,0,6,0" />
         </Style>
     </Window.Resources>
 
@@ -134,9 +145,18 @@
                             <CheckBox Content="安全模式：卸载改为停用" IsChecked="{Binding SafetyMode}" Margin="0,4"
                                       Style="{StaticResource MaterialDesignCheckBox}"
                                       ToolTip="停用比卸载更容易恢复，也不会触发系统的自动重装。建议保持勾选。" />
-                            <CheckBox Content="深度扫描第三方应用安装来源" IsChecked="{Binding DeepScan}" Margin="0,4"
+                            <CheckBox Content="深度扫描：读取安装来源与权限列表" IsChecked="{Binding DeepScan}" Margin="0,4"
                                       Style="{StaticResource MaterialDesignCheckBox}"
-                                      ToolTip="读取每个第三方应用的安装来源与首次安装时间，用于找出被强行安装的应用。会多花 10~30 秒。" />
+                                      ToolTipService.ShowDuration="30000"
+                                      ToolTip="读取每个第三方应用的安装来源、首次安装时间，以及它申请的权限列表。前者用来找出被强行安装的应用，后者用来筛出申请了悬浮窗、安装应用这类高危权限的应用。会多花 10~30 秒。" />
+                            <CheckBox Content="强制重新读取权限（忽略缓存）" IsChecked="{Binding ForceDetailRefresh}" Margin="0,4"
+                                      Style="{StaticResource MaterialDesignCheckBox}"
+                                      ToolTipService.ShowDuration="30000"
+                                      ToolTip="默认会用上次扫描缓存下来的权限与安装来源，重复扫描只要 1~2 秒（这些信息只随应用更新变化，缓存是安全的）。&#10;&#10;只在需要「手机上此刻的真实状态」时勾上，例如刚在手机里改过权限、刚装完应用。勾上后扫描会慢一些（每个应用都要跑一次 dumpsys）。" />
+                            <CheckBox Content="卸载前备份安装包（强烈建议）" IsChecked="{Binding BackupApksBeforeUninstall}" Margin="0,4"
+                                      Style="{StaticResource MaterialDesignCheckBox}"
+                                      ToolTipService.ShowDuration="60000"
+                                      ToolTip="**关掉它就可能永远装不回来。**&#10;&#10;商店安装的应用（安装包在 /data/app）被卸载时，安装包会被系统一起删掉——之后连本程序也救不回来。勾上这一项，程序会在卸载前把安装包备份到电脑（%LOCALAPPDATA%\AndroidOptimize\devices\序列号\apk-backup\），回滚时用备份装回去。&#10;&#10;系统预装应用不受影响（系统分区上还有副本，随时能装回来）。" />
                             <CheckBox Content="同时优化系统动画等相关设置" IsChecked="{Binding IncludeSettings}" Margin="0,4"
                                       Style="{StaticResource MaterialDesignCheckBox}" />
                             <CheckBox Content="关闭第三方应用的传感器权限（防摇一摇广告）" IsChecked="{Binding SensorPolicyEnabled}"
@@ -161,7 +181,7 @@
                     </materialDesign:Card>
 
                     <materialDesign:Card Padding="16" Margin="0,0,0,12" UniformCornerRadius="8">
-                        <Expander Header="AI 识别未知应用（可选）" FontWeight="SemiBold">
+                        <Expander Header="AI 识别未知应用（可选）" FontWeight="SemiBold" IsExpanded="True">
                             <StackPanel Margin="0,10,0,0">
                                 <TextBlock Text="{Binding AiStatusText}" Style="{StaticResource HintText}" Margin="0,0,0,10" />
                                 <CheckBox Content="启用 AI 识别" IsChecked="{Binding EnableAi}" Margin="0,4"
@@ -202,6 +222,17 @@
                                 <Button Content="保存日志" Command="{Binding SaveLogCommand}"
                                         Style="{StaticResource MaterialDesignFlatButton}" />
                             </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <Button Content="这台手机的数据" Command="{Binding OpenDeviceFolderCommand}" Margin="0,0,8,0"
+                                        ToolTipService.ShowDuration="30000"
+                                        Style="{StaticResource MaterialDesignFlatButton}"
+                                        ToolTip="每台手机的数据都按序列号分开放：devices\序列号\ 下面是这台手机的设备信息、扫描记录、快照与报告。" />
+                                <Button Content="导出数据统计" Command="{Binding ExportStatisticsCommand}"
+                                        ToolTipService.ShowDuration="30000"
+                                        Style="{StaticResource MaterialDesignFlatButton}"
+                                        ToolTip="把所有手机的档案汇总成一份统计：机型与系统版本、名单外的应用、权限命中排行、没收录但常见的权限。用来改进名单和程序。**不含序列号等个人信息**。" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding DeviceDataPath}" Style="{StaticResource HintText}" Margin="0,6,0,0" />
                             <TextBlock Text="{Binding AboutText}" Style="{StaticResource HintText}" Margin="0,10,0,0" />
                         </StackPanel>
                     </materialDesign:Card>
@@ -214,10 +245,14 @@
                     BorderThickness="0,1,0,0" BorderBrush="{DynamicResource MaterialDesignDivider}">
                 <StackPanel>
                     <TextBlock Text="第 4 步 · 执行" Style="{StaticResource SectionTitle}" />
-                    <Button Content="开始扫描手机" Command="{Binding ScanCommand}" Height="42" Margin="0,0,0,8"
+                    <Button Content="{Binding ScanButtonText}" Command="{Binding ScanCommand}" Height="42" Margin="0,0,0,8"
                             Style="{StaticResource MaterialDesignRaisedButton}" />
                     <Button Content="执行优化" Command="{Binding ExecuteCommand}" Height="42"
                             Style="{StaticResource MaterialDesignRaisedButton}" />
+                    <Button Content="识别未知应用（AI）" Command="{Binding ClassifyNowCommand}" Height="38" Margin="0,8,0,0"
+                            ToolTipService.ShowDuration="30000"
+                            Style="{StaticResource MaterialDesignOutlinedButton}"
+                            ToolTip="对当前扫描结果里的未知应用联网识别，不需要重新扫描。需要先在左侧「AI 识别未知应用」里填好 Key 并勾选同意；识别结果会出现在「优化计划」页，默认不勾选。" />
                     <TextBlock Text="{Binding PlanSummary}" Style="{StaticResource HintText}" Margin="0,10,0,0" />
                 </StackPanel>
             </Border>
@@ -229,19 +264,26 @@
                 <!-- 体检 -->
                 <TabItem Header="手机体检">
                     <DockPanel Margin="0,10,0,0">
-                        <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Width="240" Text="{Binding ScanFilter, UpdateSourceTrigger=PropertyChanged}"
-                                     materialDesign:HintAssist.Hint="搜索包名或应用名" />
-                            <CheckBox Grid.Column="1" Content="显示全部系统应用" Margin="16,0,0,0" VerticalAlignment="Center"
-                                      IsChecked="{Binding ShowSystemApps}" Style="{StaticResource MaterialDesignCheckBox}" />
-                            <TextBlock Grid.Column="2" Text="{Binding ScanSummary}" VerticalAlignment="Center"
-                                       Margin="16,0,0,0" TextWrapping="Wrap" Opacity="0.75" />
-                        </Grid>
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <WrapPanel Orientation="Horizontal">
+                                <TextBox Width="200" Text="{Binding ScanFilter, UpdateSourceTrigger=PropertyChanged}"
+                                         materialDesign:HintAssist.Hint="搜索应用名或包名" />
+                                <TextBlock Text="类型" Style="{StaticResource FilterLabel}" />
+                                <ComboBox Width="100" VerticalAlignment="Center" ItemsSource="{Binding TypeFilterOptions}"
+                                          SelectedItem="{Binding ScanTypeFilter}" />
+                                <TextBlock Text="建议" Style="{StaticResource FilterLabel}" />
+                                <ComboBox Width="120" VerticalAlignment="Center" ItemsSource="{Binding AdviceFilterOptions}"
+                                          SelectedItem="{Binding ScanAdviceFilter}" />
+                                <TextBlock Text="权限" Style="{StaticResource FilterLabel}" />
+                                <ComboBox Width="145" VerticalAlignment="Center" ItemsSource="{Binding PermissionFilterOptions}"
+                                          SelectedItem="{Binding ScanPermissionFilter}"
+                                          ToolTipService.ShowDuration="30000"
+                                          ToolTip="按申请的权限筛出可疑应用。选「含高危权限」= 申请了悬浮窗、安装应用、读取所有应用、无障碍、读取短信里的任意一条。权限在勾选「深度扫描」时读取。" />
+                                <TextBlock Text="{Binding ScanFilterSummary}" VerticalAlignment="Center"
+                                           Margin="14,0,0,0" Opacity="0.7" />
+                            </WrapPanel>
+                            <TextBlock Text="{Binding ScanSummary}" Margin="0,8,0,0" TextWrapping="Wrap" Opacity="0.75" />
+                        </StackPanel>
                         <DataGrid ItemsSource="{Binding ScanRowsView}" AutoGenerateColumns="False" IsReadOnly="True"
                                   Style="{StaticResource MaterialDesignDataGrid}" FontSize="12"
                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal"
@@ -253,17 +295,29 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="包名" Binding="{Binding PackageName, Mode=OneWay}" Width="24*"
+                                <DataGridTextColumn Header="应用名" Binding="{Binding DisplayName, Mode=OneWay}" Width="15*"
                                                     ElementStyle="{StaticResource GridCellText}" />
-                                <DataGridTextColumn Header="名称" Binding="{Binding DisplayName, Mode=OneWay}" Width="13*"
+                                <DataGridTextColumn Header="包名" Binding="{Binding PackageName, Mode=OneWay}" Width="17*"
                                                     ElementStyle="{StaticResource GridCellText}" />
-                                <DataGridTextColumn Header="类型·状态" Binding="{Binding TypeStateText, Mode=OneWay}" Width="14*"
+                                <DataGridTextColumn Header="类型·状态" Binding="{Binding TypeStateText, Mode=OneWay}" Width="10*"
                                                     ElementStyle="{StaticResource GridCellCentered}" />
-                                <DataGridTextColumn Header="名单判定" Binding="{Binding ListStateText, Mode=OneWay}" Width="15*"
+                                <DataGridTextColumn Header="建议" Binding="{Binding AdviceText, Mode=OneWay}" Width="13*"
+                                                    ElementStyle="{StaticResource GridCellCentered}" />
+                                <DataGridTemplateColumn Header="权限" Width="13*" SortMemberPath="PermissionSortRank">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding PermissionText}" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{Binding PermissionProfile, Converter={StaticResource PermissionBrush}}"
+                                                       ToolTipService.ShowDuration="60000"
+                                                       ToolTip="{Binding PermissionProfile.Tooltip}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="安装来源" Binding="{Binding InstallerText, Mode=OneWay}" Width="12*"
                                                     ElementStyle="{StaticResource GridCellText}" />
-                                <DataGridTextColumn Header="安装来源" Binding="{Binding InstallerText, Mode=OneWay}" Width="20*"
-                                                    ElementStyle="{StaticResource GridCellText}" />
-                                <DataGridTextColumn Header="说明" Binding="{Binding NoteText, Mode=OneWay}" Width="26*"
+                                <DataGridTextColumn Header="作用 / 说明" Binding="{Binding NoteText, Mode=OneWay}" Width="26*"
                                                     ElementStyle="{StaticResource GridCellText}" />
                             </DataGrid.Columns>
                         </DataGrid>
@@ -284,24 +338,49 @@
                                 <Button Content="全不选" Command="{Binding SelectNoneCommand}"
                                         Style="{StaticResource MaterialDesignFlatButton}" />
                             </StackPanel>
+                            <!-- 勾选之后直接动手：弹窗确认一次，执行完给结果 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <TextBlock Text="对勾选的应用立即执行：" VerticalAlignment="Center" FontSize="12" Opacity="0.7" />
+                                <Button x:Name="SetSelectedDisableButton" Content="停用" Command="{Binding SetSelectedDisableCommand}" Margin="8,0,8,0"
+                                        ToolTipService.ShowDuration="30000" Height="30" Padding="12,0"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                                        ToolTip="立即停用已勾选的应用：会先弹窗列出清单让你确认，执行完给出结果。停用后应用不能运行、图标消失，随时可在「回滚」页一键还原。" />
+                                <Button x:Name="SetSelectedUninstallButton" Content="卸载" Command="{Binding SetSelectedUninstallCommand}"
+                                        ToolTipService.ShowDuration="30000" Height="30" Padding="12,0"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                                        ToolTip="立即卸载已勾选的应用：会先弹窗列出清单让你确认，执行完给出结果。卸载保留应用数据，也能在「回滚」页装回来；系统不允许卸载的会自动降级为停用。" />
+                            </StackPanel>
+                            <WrapPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBox Width="160" Text="{Binding PlanSearch, UpdateSourceTrigger=PropertyChanged}"
+                                         materialDesign:HintAssist.Hint="搜索应用名或包名" />
+                                <TextBlock Text="类型" Style="{StaticResource FilterLabel}" />
+                                <ComboBox Width="90" VerticalAlignment="Center" ItemsSource="{Binding TypeFilterOptions}"
+                                          SelectedItem="{Binding PlanTypeFilter}" />
+                                <TextBlock Text="建议" Style="{StaticResource FilterLabel}" />
+                                <ComboBox Width="110" VerticalAlignment="Center" ItemsSource="{Binding AdviceFilterOptions}"
+                                          SelectedItem="{Binding PlanAdviceFilter}" />
+                                <TextBlock Text="风险" Style="{StaticResource FilterLabel}" />
+                                <ComboBox Width="75" VerticalAlignment="Center" ItemsSource="{Binding RiskFilterOptions}"
+                                          SelectedItem="{Binding PlanRiskFilter}" />
+                                <TextBlock Text="权限" Style="{StaticResource FilterLabel}" />
+                                <ComboBox Width="145" VerticalAlignment="Center" ItemsSource="{Binding PermissionFilterOptions}"
+                                          SelectedItem="{Binding PlanPermissionFilter}"
+                                          ToolTipService.ShowDuration="30000"
+                                          ToolTip="按申请的权限筛。选「含高危权限」可以一次挑出申请了悬浮窗、安装应用、读取所有应用、无障碍、读取短信的应用。" />
+                                <TextBlock Text="{Binding PlanFilterSummary}" VerticalAlignment="Center"
+                                           Margin="14,0,0,0" FontSize="12" Opacity="0.75" TextWrapping="Wrap" />
+                            </WrapPanel>
                             <Border Margin="0,12,0,0" Padding="12" CornerRadius="8"
                                     Background="#FFF3E0" BorderBrush="#FFE0B2" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="懒人模式：只保留常用应用" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="名单里查不到的应用" FontWeight="SemiBold" Margin="0,0,0,4" />
                                     <TextBlock TextWrapping="Wrap" FontSize="12" Opacity="0.85" Margin="0,0,0,8"
-                                               Text="不做任何猜测：除「必须保留清单」里的应用外，其余全部勾选。适合给长辈收拾手机——不用一个个挑，也不会因为认不出某个包名而漏掉。" />
-                                    <Button Content="一键勾选（白名单之外全部处理）"
-                                            Command="{Binding ApplyLazyModeCommand}" HorizontalAlignment="Left"
+                                               Text="有离线名册资料的应用会按社区的清理结论各自标注（名册说「建议清理」的已经默认勾上）。完全没有资料的只剩第三方应用，需要你自己看一眼——它们默认不勾。" />
+                                    <Button Content="选中全部「名单外」的应用"
+                                            Command="{Binding SelectUnknownCommand}" HorizontalAlignment="Left"
                                             ToolTipService.ShowDuration="60000"
-                                            Style="{StaticResource MaterialDesignRaisedButton}"
-                                            ToolTip="勾选「必须保留清单」之外的全部项目。保留清单写在 data/packages.json 的 lazyMode.keep 里，默认含微信、QQ、抖音、快手、地图导航、出行、办公、医院健康；保护名单（反诈、支付、输入法、电话短信）自动保留。执行前请扫一眼列表。" />
-                                    <Button Content="只处理「名单外」的应用（更保守）"
-                                            Command="{Binding SelectUnknownCommand}" Margin="0,8,0,0"
-                                            HorizontalAlignment="Left" ToolTipService.ShowDuration="30000"
-                                            Style="{StaticResource MaterialDesignFlatButton}"
-                                            ToolTip="只勾选名单里查不到的第三方应用，名单里已有的处理项保持原样。" />
-                                    <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.72" Margin="0,8,0,0"
-                                               Text="保留清单可以在 data/packages.json 的 lazyMode.keep 里自己增删；写错了在「回滚」页一键还原即可。" />
+                                            Style="{StaticResource MaterialDesignOutlinedButton}"
+                                            ToolTip="把名单和名册里都查不到的第三方应用一次勾上。它们会被停用而不是卸载，随时可在「回滚」页还原。执行前请扫一眼列表，把医院挂号、社区服务这类要紧的应用取消勾选。" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -309,22 +388,55 @@
                                   Style="{StaticResource MaterialDesignDataGrid}" FontSize="12"
                                   HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                                   CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Single">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="ToolTip" Value="{Binding RowTooltip}" />
+                                </Style>
+                            </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTemplateColumn Header="选择" Width="46">
+                                <DataGridTemplateColumn Header="选择" Width="88" SortMemberPath="IsSelected">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
-                                                      IsEnabled="{Binding IsSelectable}" HorizontalAlignment="Center" />
+                                                      IsEnabled="{Binding IsSelectable}" HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="名称" Binding="{Binding DisplayName, Mode=OneWay}" Width="18*"
+                                <DataGridTextColumn Header="应用名" Binding="{Binding DisplayName, Mode=OneWay}" Width="15*"
                                                     ElementStyle="{StaticResource GridCellText}" />
-                                <DataGridTextColumn Header="包名 / 设置项" Binding="{Binding Target, Mode=OneWay}" Width="22*"
+                                <DataGridTextColumn Header="包名 / 项目" Binding="{Binding Target, Mode=OneWay}" Width="16*"
                                                     ElementStyle="{StaticResource GridCellText}" />
-                                <DataGridTextColumn Header="动作" Binding="{Binding ActionText, Mode=OneWay}" Width="10*"
+                                <DataGridTextColumn Header="类型" Binding="{Binding TypeText, Mode=OneWay}" Width="9*"
                                                     ElementStyle="{StaticResource GridCellCentered}" />
-                                <DataGridTemplateColumn Header="风险" Width="9*">
+                                <!-- 动作：可以直接在这行选「停用 / 卸载」，设置项与后台限制仍是文字 -->
+                                <DataGridTemplateColumn Header="动作" Width="11*" SortMemberPath="ActionText">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <ComboBox ItemsSource="{Binding ActionOptions}" DisplayMemberPath="Label"
+                                                          SelectedValuePath="Value" Margin="2,1"
+                                                          SelectedValue="{Binding SelectedAction, UpdateSourceTrigger=PropertyChanged}"
+                                                          ToolTipService.ShowDuration="30000"
+                                                          ToolTip="自己选这一项是停用还是卸载。安全模式不会降级你手动选的动作。"
+                                                          Visibility="{Binding CanChooseAction, Converter={StaticResource BoolToVis}}" />
+                                                <TextBlock Text="{Binding ActionText}" HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" FontWeight="SemiBold"
+                                                           Visibility="{Binding CanChooseAction, Converter={StaticResource InverseBoolToVis}}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="建议" Width="12*" SortMemberPath="AdviceGroup">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding AdviceText}" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" FontWeight="SemiBold"
+                                                       Foreground="{Binding AdviceGroup, Converter={StaticResource AdviceBrush}}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="风险" Width="8*" SortMemberPath="Risk">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding RiskText}" FontWeight="SemiBold"
@@ -333,26 +445,35 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="来源" Width="10*">
+                                <DataGridTemplateColumn Header="权限" Width="18*" SortMemberPath="PermissionSortRank">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding SourceText}"
-                                                       Foreground="{Binding SourceText, Converter={StaticResource SourceBrush}}" />
+                                            <TextBlock Text="{Binding PermissionText}" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{Binding PermissionProfile, Converter={StaticResource PermissionBrush}}"
+                                                       ToolTipService.ShowDuration="60000"
+                                                       ToolTip="{Binding PermissionProfile.Tooltip}" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="参数" Width="13*">
+                                <!-- 设置项的参数选择直接放在说明列里，省一列宽度 -->
+                                <DataGridTemplateColumn Header="作用 / 说明" Width="18*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <ComboBox ItemsSource="{Binding Choices}" DisplayMemberPath="Label"
-                                                      SelectedValuePath="Value"
-                                                      SelectedValue="{Binding SelectedChoice, UpdateSourceTrigger=PropertyChanged}"
-                                                      Visibility="{Binding HasChoices, Converter={StaticResource BoolToVis}}" />
+                                            <Grid>
+                                                <ComboBox ItemsSource="{Binding Choices}" DisplayMemberPath="Label"
+                                                          SelectedValuePath="Value" Margin="4,2"
+                                                          SelectedValue="{Binding SelectedChoice, UpdateSourceTrigger=PropertyChanged}"
+                                                          Visibility="{Binding HasChoices, Converter={StaticResource BoolToVis}}" />
+                                                <TextBlock Text="{Binding DetailText}" Margin="8,0,4,0"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding DetailText}"
+                                                           Visibility="{Binding HasChoices, Converter={StaticResource InverseBoolToVis}}" />
+                                            </Grid>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="说明" Binding="{Binding DetailText, Mode=OneWay}" Width="34*"
-                                                    ElementStyle="{StaticResource GridCellText}" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </DockPanel>
@@ -382,7 +503,7 @@
                                                     ElementStyle="{StaticResource GridCellText}" />
                                 <DataGridTextColumn Header="动作" Binding="{Binding ActionText, Mode=OneWay}" Width="10*"
                                                     ElementStyle="{StaticResource GridCellCentered}" />
-                                <DataGridTemplateColumn Header="结果" Width="13*">
+                                <DataGridTemplateColumn Header="结果" Width="13*" SortMemberPath="Status">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold"
@@ -405,25 +526,76 @@
                         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                             <TextBlock TextWrapping="Wrap" FontWeight="SemiBold" Text="每次执行优化前都会自动保存快照。选择一条记录即可把手机还原到当时的状态。" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="12" Margin="0,6,0,0"
-                                       Text="还原会把停用的应用重新启用、把卸载的应用重新装回、把改过的设置写回原值。还原后建议重启手机。" />
+                                       Text="还原会把停用的应用重新启用、把卸载的应用重新装回（用电脑上的安装包备份）、把改过的设置写回原值。还原后建议重启手机。" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="12" Margin="0,6,0,0"
+                                       Text="双击下面任意一条记录，可以看到那次一共改了什么、每一项还能不能恢复。" />
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                 <Button Content="一键还原选中的快照" Command="{Binding RollbackCommand}" Margin="0,0,8,0"
                                         Style="{StaticResource MaterialDesignRaisedButton}" />
+                                <Button Content="查看这条改了什么" Command="{Binding ShowRollbackDetailCommand}" Margin="0,0,8,0"
+                                        Style="{StaticResource MaterialDesignOutlinedButton}" />
                                 <Button Content="刷新列表" Command="{Binding OpenSnapshotFolderCommand}"
                                         Style="{StaticResource MaterialDesignOutlinedButton}" />
                             </StackPanel>
                         </StackPanel>
-                        <ListBox ItemsSource="{Binding Snapshots}" SelectedItem="{Binding SelectedSnapshot}"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="4,6">
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Subtitle}" FontSize="11" Opacity="0.7" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="2*" MinHeight="120" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="3*" MinHeight="0" />
+                            </Grid.RowDefinitions>
+
+                            <ListBox Grid.Row="0" ItemsSource="{Binding Snapshots}" SelectedItem="{Binding SelectedSnapshot}"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     MouseDoubleClick="Snapshots_OnMouseDoubleClick">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="4,6">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Subtitle}" FontSize="11" Opacity="0.7" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <!-- 双击后在下面列出这次改了什么，以及每一项还能不能恢复 -->
+                            <TextBlock Grid.Row="1" Text="{Binding RollbackDetailTitle}" TextWrapping="Wrap"
+                                       FontWeight="SemiBold" Margin="0,10,0,6"
+                                       Visibility="{Binding HasRollbackDetail, Converter={StaticResource BoolToVis}}" />
+
+                            <DataGrid Grid.Row="2" ItemsSource="{Binding RollbackItems}" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Style="{StaticResource MaterialDesignDataGrid}" FontSize="12"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Single"
+                                      Visibility="{Binding HasRollbackDetail, Converter={StaticResource BoolToVis}}">
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Setter Property="ToolTip" Value="{Binding RowTooltip}" />
+                                    </Style>
+                                </DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="应用名" Binding="{Binding DisplayName, Mode=OneWay}" Width="18*"
+                                                        ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="包名" Binding="{Binding Target, Mode=OneWay}" Width="24*"
+                                                        ElementStyle="{StaticResource GridCellText}" />
+                                    <DataGridTextColumn Header="当时的动作" Binding="{Binding ActionText, Mode=OneWay}" Width="11*"
+                                                        ElementStyle="{StaticResource GridCellCentered}" />
+                                    <DataGridTextColumn Header="原状态" Binding="{Binding StateText, Mode=OneWay}" Width="10*"
+                                                        ElementStyle="{StaticResource GridCellCentered}" />
+                                    <DataGridTemplateColumn Header="能不能恢复" Width="37*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding RestoreText}" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" Margin="8,0,4,0"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{Binding State, Converter={StaticResource RestoreBrush}}"
+                                                           ToolTip="{Binding RestoreText}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
                     </DockPanel>
                 </TabItem>
 

@@ -40,9 +40,12 @@ Add-Content .gitignore "`n/release/"
 ## 怎么重新生成
 
 ```powershell
-.\tools\publish.ps1 -OutputDirectory release -Version 0.1.0
+.\tools\publish.ps1 -OutputDirectory release -Version 0.2.0
 ```
 
-脚本会自动跑一遍 90 项自检，不通过就不产出。
+脚本会自动跑一遍 210 项自检，不通过就不产出。
+
+发布新版本时**先把旧版本的 exe 删掉再提交**（`git rm release\AndroidOptimize-旧版本.exe`）：
+仓库里只留当前版本，历史里的旧版本删不掉，但至少不继续往上叠。
 
 > 顺便：`dist\` 是构建输出目录（不纳入版本管理），`release\` 专门放要提交的产物，两者分开。

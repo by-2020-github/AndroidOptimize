@@ -129,6 +129,87 @@ public class AdbClient
         return result.StdOut;
     }
 
+    /// <summary>
+    /// 用 exec-out 跑一条设备端命令，并把 stdout 当**原始字节**取回来。
+    /// 读 APK 这类二进制内容必须走这里：普通 shell 会做换行转换，二进制会被破坏。
+    /// </summary>
+    public virtual async Task<byte[]> ExecOutBytesAsync(string command, TimeSpan timeout, CancellationToken ct)
+    {
+        var args = new List<string>();
+        if (!string.IsNullOrEmpty(Serial))
+        {
+            args.Add("-s");
+            args.Add(Serial);
+        }
+        args.Add("exec-out");
+        args.Add(command);
+
+        _trace?.Invoke($"> adb exec-out {command}");
+
+        var psi = new ProcessStartInfo(AdbPath)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            StandardErrorEncoding = Utf8NoBom,
+        };
+        foreach (var argument in args)
+        {
+            psi.ArgumentList.Add(argument);
+        }
+
+        using var process = new Process { StartInfo = psi };
+        try
+        {
+            if (!process.Start()) return [];
+        }
+        catch
+        {
+            return [];
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(timeout);
+        var copyTask = CopyToMemoryAsync(process.StandardOutput.BaseStream, ct);
+        var drainTask = process.StandardError.ReadToEndAsync();
+
+        try
+        {
+            await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            TryKill(process);
+            if (!ct.IsCancellationRequested) return [];
+            throw;
+        }
+
+        var data = await SafeAwaitBytes(copyTask).ConfigureAwait(false);
+        await SafeAwait(drainTask).ConfigureAwait(false);
+        _trace?.Invoke($"< exec-out {data.Length} 字节");
+        return data;
+    }
+
+    private static async Task<byte[]> CopyToMemoryAsync(Stream source, CancellationToken ct)
+    {
+        using var memory = new MemoryStream();
+        await source.CopyToAsync(memory, ct).ConfigureAwait(false);
+        return memory.ToArray();
+    }
+
+    private static async Task<byte[]> SafeAwaitBytes(Task<byte[]> task)
+    {
+        try
+        {
+            return await task.ConfigureAwait(false);
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     private static async Task<string> SafeAwait(Task<string> task)
     {
         try

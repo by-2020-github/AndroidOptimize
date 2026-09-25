@@ -25,6 +25,14 @@ public sealed class AppSettings
 
     [JsonPropertyName("safetyMode")] public bool SafetyMode { get; set; } = true;
     [JsonPropertyName("deepScan")] public bool DeepScan { get; set; } = true;
+    /// <summary>强制重新读取权限与安装来源（忽略缓存）。默认关，用缓存能显著加快重复扫描。</summary>
+    [JsonPropertyName("forceDetailRefresh")] public bool ForceDetailRefresh { get; set; }
+
+    /// <summary>
+    /// 卸载前把安装包备份到电脑（默认开）。
+    /// 商店安装的应用被卸载时安装包会被系统删掉，没有备份就再也装不回来。
+    /// </summary>
+    [JsonPropertyName("backupApksBeforeUninstall")] public bool BackupApksBeforeUninstall { get; set; } = true;
     [JsonPropertyName("includeSettings")] public bool IncludeSettings { get; set; } = true;
     [JsonPropertyName("allowGuarded")] public bool AllowGuarded { get; set; }
     [JsonPropertyName("lastTier")] public OptimizationTier LastTier { get; set; } = OptimizationTier.Normal;

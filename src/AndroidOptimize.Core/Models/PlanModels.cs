@@ -27,6 +27,44 @@ public sealed class PlanItem
     /// <summary>系统是否记录该应用「安装后从未被打开过」。null 表示设备没给出这个信息。</summary>
     public bool? NeverLaunched { get; init; }
 
+    /// <summary>桌面上有没有图标。null 表示没读到。</summary>
+    public bool? HasLauncher { get; init; }
+
+    /// <summary>是不是系统应用。用于列表里标「系统 / 第三方」，也用于筛选。</summary>
+    public bool IsSystem { get; init; }
+
+    /// <summary>
+    /// 权限画像：这个应用申请了哪些值得警惕的权限。
+    /// 只用于展示和筛选，**不参与自动勾选**。见 <see cref="PermissionAdvice"/>。
+    /// </summary>
+    public AppPermissionProfile PermissionProfile { get; init; } = AppPermissionProfile.Unknown;
+
+    public string TypeText => IsSystem ? "系统" : "第三方";
+
+    /// <summary>行悬停提示：把表格里放不下的信息补齐。</summary>
+    public string RowTooltip
+    {
+        get
+        {
+            var lines = new List<string> { $"{DisplayName}（{Target}）", $"建议：{Advice.ForPlanItem(this).Text}" };
+            if (!string.IsNullOrWhiteSpace(Installer)) lines.Add($"安装来源：{Installer}");
+            if (InstalledAt is not null) lines.Add($"首次安装：{InstalledAt:yyyy-MM-dd}");
+            if (HasActionOverride) lines.Add($"动作：{ActionText}（你手动指定的，不会按安全模式降级）");
+            if (PermissionProfile.Known)
+            {
+                lines.Add(PermissionProfile.Hits.Count > 0
+                    ? $"权限：{PermissionProfile.DisplayText}"
+                    : "权限：没有命中名单里值得警惕的权限");
+            }
+            if (!string.IsNullOrWhiteSpace(Reason)) lines.Add(Reason!);
+            if (!string.IsNullOrWhiteSpace(Impact)) lines.Add($"影响：{Impact}");
+            return string.Join("\n", lines);
+        }
+    }
+
+    /// <summary>离线名册给的清理结论（recommended / advanced / expert / unsafe）。</summary>
+    public string? Removal { get; init; }
+
     // 仅 Setting
     public string? SettingNamespace { get; init; }
     public IReadOnlyList<string>? SettingKeys { get; init; }
@@ -40,7 +78,30 @@ public sealed class PlanItem
     public bool IsSelected { get; set; }
     public bool IsSelectable { get; set; } = true;
 
-    public string ActionText => Action switch
+    /// <summary>
+    /// 用户在「优化计划」页手动指定的动作（停用 / 卸载）。null = 用名单、名册给的动作。
+    ///
+    /// 这是**显式选择**：用户是在看清「会失去什么」之后自己点的，所以不再被安全模式降级
+    /// （和「应用商店不受安全模式影响」是同一个道理）。原来的动作保留在 <see cref="Action"/> 里，
+    /// 用户选回默认值时就把覆盖清掉。
+    /// </summary>
+    public PackageAction? ActionOverride { get; set; }
+
+    /// <summary>实际会执行的动作。执行器、快照、汇总都用它，别再用 <see cref="Action"/>。</summary>
+    public PackageAction EffectiveAction => ActionOverride ?? Action;
+
+    /// <summary>用户有没有手动改过动作。</summary>
+    public bool HasActionOverride => ActionOverride is not null;
+
+    /// <summary>
+    /// 能不能手动在「停用 / 卸载」之间切。设置项、后台限制（策略）这类没有这个选择，
+    /// 本来就标着「保留」的也不用给。
+    /// </summary>
+    public bool CanChooseAction =>
+        Kind is not (PlanItemKind.Setting or PlanItemKind.Policy)
+        && Action is PackageAction.Disable or PackageAction.Uninstall;
+
+    public string ActionText => EffectiveAction switch
     {
         PackageAction.Disable => "停用",
         PackageAction.Uninstall => "卸载",
@@ -72,6 +133,7 @@ public sealed class PlanItem
         "list" => "名单",
         "policy" => "策略",
         "unknown" => "未知",
+        "catalog" => "名册",
         _ => Source,
     };
 }
@@ -94,6 +156,7 @@ public sealed class OptimizationPlan
     public int SettingCount => Items.Count(i => i.Kind == PlanItemKind.Setting);
     public int AiSuggestionCount => Items.Count(i => i.Kind == PlanItemKind.AiSuggestion);
     public int UnknownCount => Items.Count(i => i.Kind == PlanItemKind.Unknown);
+    public int CatalogCount => Items.Count(i => i.Kind == PlanItemKind.Catalog);
     public IEnumerable<PlanItem> UnknownItems => Items.Where(i => i.Kind == PlanItemKind.Unknown);
     public int ProtectedCount => Skipped.Count(s => s.ProtectionLevel != ProtectionLevel.None);
 
@@ -101,10 +164,10 @@ public sealed class OptimizationPlan
     {
         get
         {
-            var disable = Items.Count(i => i.IsSelected && i.IsSelectable && i.Action == PackageAction.Disable);
-            var uninstall = Items.Count(i => i.IsSelected && i.IsSelectable && i.Action == PackageAction.Uninstall);
-            var restrict = Items.Count(i => i.IsSelected && i.IsSelectable && i.Action == PackageAction.Restrict);
-            var settings = Items.Count(i => i.IsSelected && i.IsSelectable && i.Action == PackageAction.Settings);
+            var disable = Items.Count(i => i.IsSelected && i.IsSelectable && i.EffectiveAction == PackageAction.Disable);
+            var uninstall = Items.Count(i => i.IsSelected && i.IsSelectable && i.EffectiveAction == PackageAction.Uninstall);
+            var restrict = Items.Count(i => i.IsSelected && i.IsSelectable && i.EffectiveAction == PackageAction.Restrict);
+            var settings = Items.Count(i => i.IsSelected && i.IsSelectable && i.EffectiveAction == PackageAction.Settings);
             var parts = new List<string>();
             if (disable > 0) parts.Add($"停用 {disable} 项");
             if (uninstall > 0) parts.Add($"卸载 {uninstall} 项");

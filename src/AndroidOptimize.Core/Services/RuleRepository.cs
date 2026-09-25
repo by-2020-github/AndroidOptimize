@@ -1,6 +1,4 @@
-using System.Reflection;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using AndroidOptimize.Core.Models;
 
@@ -12,14 +10,6 @@ namespace AndroidOptimize.Core.Services;
 /// </summary>
 public sealed class RuleRepository
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true) },
-    };
-
     private readonly List<(Regex Regex, ProtectionPattern Pattern, int Specificity)> _protectionMatchers;
     private readonly Dictionary<string, List<RuleRecord>> _packageRules;
     private readonly Dictionary<string, RuleRecord> _settingRules;
@@ -92,9 +82,9 @@ public sealed class RuleRepository
         var warnings = new List<string>();
         appBaseDirectory ??= AppContext.BaseDirectory;
 
-        var ruleSet = LoadFile<RuleSetFile>("packages.json", appBaseDirectory, out var ruleSource, warnings)
+        var ruleSet = DataFileLoader.Load<RuleSetFile>("packages.json", appBaseDirectory, out var ruleSource, warnings)
                       ?? throw new InvalidOperationException("无法加载应用名单 packages.json，程序内置资源可能已损坏。");
-        var protection = LoadFile<ProtectionFile>("protected.json", appBaseDirectory, out var protectionSource, warnings)
+        var protection = DataFileLoader.Load<ProtectionFile>("protected.json", appBaseDirectory, out var protectionSource, warnings)
                          ?? CreateDefaultProtection();
 
         if (ruleSet.SchemaVersion > 1)
@@ -130,70 +120,6 @@ public sealed class RuleRepository
                 })
                 .ToList(),
         };
-    }
-
-    private static T? LoadFile<T>(string fileName, string appBaseDirectory, out ListSource source, List<string> warnings)
-        where T : class
-    {
-        source = ListSource.Builtin;
-
-        var candidates = new (string Path, ListSource Source)[]
-        {
-            (Path.Combine(AppPaths.UserDataDir, fileName), ListSource.UserData),
-            (Path.Combine(appBaseDirectory, "data", fileName), ListSource.AppFolder),
-        };
-
-        foreach (var (path, candidateSource) in candidates)
-        {
-            if (!File.Exists(path)) continue;
-            try
-            {
-                var json = File.ReadAllText(path);
-                var parsed = JsonSerializer.Deserialize<T>(json, JsonOptions);
-                if (parsed is not null)
-                {
-                    source = candidateSource;
-                    return parsed;
-                }
-                warnings.Add($"配置文件 {path} 内容为空，已跳过。");
-            }
-            catch (Exception ex)
-            {
-                warnings.Add($"读取 {path} 失败（{ex.Message}），已跳过该来源。");
-            }
-        }
-
-        var embedded = LoadEmbedded<T>(fileName, warnings);
-        if (embedded is not null)
-        {
-            source = ListSource.Builtin;
-        }
-        return embedded;
-    }
-
-    private static T? LoadEmbedded<T>(string fileName, List<string> warnings) where T : class
-    {
-        var assembly = typeof(RuleRepository).Assembly;
-        var resourceName = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith(fileName, StringComparison.OrdinalIgnoreCase));
-
-        if (resourceName is null)
-        {
-            warnings.Add($"内置资源中找不到 {fileName}。");
-            return null;
-        }
-
-        try
-        {
-            using var stream = assembly.GetManifestResourceStream(resourceName);
-            if (stream is null) return null;
-            return JsonSerializer.Deserialize<T>(stream, JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            warnings.Add($"解析内置 {fileName} 失败：{ex.Message}");
-            return null;
-        }
     }
 
     /// <summary>
@@ -248,38 +174,13 @@ public sealed class RuleRepository
         return false;
     }
 
-    /// <summary>
-    /// 名单里没有记录、但明显属于正常应用（地图、健康、出行、办公等），不该被当成垃圾。
-    /// </summary>
-    public bool IsCommonApp(string packageName)
+    /// <summary>把 installerPackageName 翻译成中文；没有对应项就原样返回。</summary>
+    public string DescribeInstaller(string? installerPackage)
     {
-        foreach (var pattern in RuleSet.UnknownExclude)
-        {
-            if (MatchesGlob(pattern, packageName)) return true;
-        }
-        return false;
+        if (string.IsNullOrWhiteSpace(installerPackage)) return "未知";
+        return RuleSet.InstallerNames.TryGetValue(installerPackage, out var name) ? name : installerPackage;
     }
 
-    public LazyModeConfig LazyMode => RuleSet.LazyMode ?? new LazyModeConfig();
-
-    /// <summary>
-    /// 懒人模式下要保留的应用：
-    /// 保护名单里的应用一律保留；此外再看懒人白名单（支持通配符）。
-    /// </summary>
-    public bool IsLazyModeKeep(string packageName)
-    {
-        if (string.IsNullOrWhiteSpace(packageName)) return true;
-
-        // 保护名单优先级最高：反诈、支付、输入法、电话短信等永远不会被懒人模式清掉。
-        if (MatchProtection(packageName).IsProtected) return true;
-
-        foreach (var pattern in LazyMode.Keep)
-        {
-            if (MatchesGlob(pattern, packageName)) return true;
-        }
-
-        return false;
-    }
 
     public static bool MatchesGlob(string pattern, string value)
     {

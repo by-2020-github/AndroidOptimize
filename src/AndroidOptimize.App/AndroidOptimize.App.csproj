@@ -11,7 +11,7 @@
     <AssemblyName>AndroidOptimize</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>安卓优化助手</Product>
     <AssemblyTitle>安卓优化助手</AssemblyTitle>
     <Description>给长辈收拾安卓手机的小工具：免 Root、免安装、一键优化、随时可退。</Description>
@@ -32,6 +32,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="..\..\data\protected.json" Link="data\protected.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\data\app-catalog.json" Link="data\app-catalog.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

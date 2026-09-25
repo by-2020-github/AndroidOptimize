@@ -4,71 +4,152 @@
   "updatedAt": "2026-09-19",
   "channel": "stable",
   "description": "AndroidOptimize 可处理应用名单。id=包名；tier=归属档位；risk=风险；action=执行动作；confidence=人工确认程度(0~1)。",
-  "unknownExclude": [
-    "com.tencent.mm",
-    "com.tencent.mobileqq",
-    "com.tencent.tim",
-    "*map*",
-    "*gaode*",
-    "*amap*",
-    "com.autonavi.*",
-    "*health*",
-    "*sport*",
-    "*fitness*",
-    "*pedometer*",
-    "*stepcount*",
-    "*hospital*",
-    "*clinic*",
-    "com.MobileTicket",
-    "com.Qunar",
-    "ctrip.android.view",
-    "cn.wps.moffice_eng",
-    "com.kingsoft.office*"
-  ],
-  "lazyMode": {
-    "name": "懒人模式",
-    "description": "不做任何猜测：只保留下面这份「必须保留」清单里的应用，白名单之外的第三方应用全部加入处理列表。适合给长辈收拾手机。保护名单（反诈、支付、输入法、电话短信等）会自动保留，不需要在这里重复。",
-    "keep": [
-      "com.tencent.mm",
-      "com.tencent.mobileqq",
-      "com.tencent.tim",
-      "com.ss.android.ugc.aweme",
-      "com.ss.android.ugc.aweme.lite",
-      "com.smile.gifmaker",
-      "com.kuaishou.nebula",
-      "com.kuaishou.mercury",
-      "*map*",
-      "*gaode*",
-      "*amap*",
-      "com.autonavi.*",
-      "com.baidu.BaiduMap",
-      "com.google.android.apps.maps",
-      "com.tencent.map",
-      "com.MobileTicket",
-      "com.Qunar",
-      "ctrip.android.view",
-      "com.sdu.didi.*",
-      "cn.wps.moffice_eng",
-      "com.kingsoft.office*",
-      "com.microsoft.office*",
-      "com.microsoft.emmx",
-      "*health*",
-      "*sport*",
-      "*fitness*",
-      "*pedometer*",
-      "*stepcount*",
-      "*hospital*",
-      "*clinic*",
-      "com.baidu.netdisk",
-      "com.tencent.wework",
-      "com.alibaba.android.rimet"
-    ]
+  "installerNames": {
+    "com.xiaomi.market": "小米应用商店",
+    "com.heytap.market": "OPPO 软件商店",
+    "com.oppo.market": "OPPO 软件商店",
+    "com.vivo.appstore": "vivo 应用商店",
+    "com.bbk.appstore": "vivo 应用商店",
+    "com.huawei.appmarket": "华为应用市场",
+    "com.hihonor.appmarket": "荣耀应用市场",
+    "com.sec.android.app.samsungapps": "三星应用商店",
+    "com.android.vending": "Google Play",
+    "com.tencent.android.qqdownloader": "应用宝",
+    "com.qihoo.appstore": "360 手机助手",
+    "com.baidu.appsearch": "百度手机助手",
+    "com.android.packageinstaller": "本机安装",
+    "com.miui.packageinstaller": "本机安装",
+    "com.google.android.packageinstaller": "本机安装",
+    "com.android.shell": "通过电脑安装"
   },
+  "permissionRisks": [
+    {
+      "match": "SYSTEM_ALERT_WINDOW",
+      "name": "悬浮窗",
+      "risk": "high",
+      "why": "可以在其它应用上层弹窗，悬浮广告和诱导点击的常用手段"
+    },
+    {
+      "match": "REQUEST_INSTALL_PACKAGES",
+      "name": "安装应用",
+      "risk": "high",
+      "why": "可以自己拉起安装其它应用，静默安装的核心能力"
+    },
+    {
+      "match": "QUERY_ALL_PACKAGES",
+      "name": "读取所有应用",
+      "risk": "high",
+      "why": "可以扫描手机里装了哪些应用，常见于推广与互相唤醒"
+    },
+    {
+      "match": "ACCESSIBILITY_SERVICE",
+      "name": "无障碍",
+      "risk": "high",
+      "why": "可以模拟点击、读取屏幕内容，被滥用后危害很大"
+    },
+    {
+      "match": "READ_SMS",
+      "name": "读取短信",
+      "risk": "high",
+      "why": "读取短信内容，涉及验证码安全"
+    },
+    {
+      "match": "PACKAGE_USAGE_STATS",
+      "name": "使用记录",
+      "risk": "medium",
+      "why": "可以读取其它应用的使用情况与前台时间"
+    },
+    {
+      "match": "RECEIVE_BOOT_COMPLETED",
+      "name": "开机自启",
+      "risk": "medium",
+      "why": "开机自动运行，长期驻留后台"
+    },
+    {
+      "match": "WRITE_SETTINGS",
+      "name": "修改系统设置",
+      "risk": "medium",
+      "why": "可以修改系统设置项"
+    },
+    {
+      "match": "INSTALL_SHORTCUT",
+      "name": "创建桌面图标",
+      "risk": "medium",
+      "why": "可以往桌面加图标，被用来偷偷放推广入口"
+    },
+    {
+      "match": "READ_PHONE_STATE",
+      "name": "读取设备信息",
+      "risk": "medium",
+      "why": "读取设备标识，常用于广告归因与追踪"
+    },
+    {
+      "match": "BACKGROUND_LOCATION",
+      "name": "后台定位",
+      "risk": "medium",
+      "why": "在后台持续获取位置"
+    },
+    {
+      "match": "READ_CONTACTS",
+      "name": "读取联系人",
+      "risk": "medium",
+      "why": "读取通讯录"
+    },
+    {
+      "match": "USE_FULL_SCREEN_INTENT",
+      "name": "全屏通知",
+      "risk": "medium",
+      "why": "可以全屏弹出通知，常被广告滥用"
+    },
+    {
+      "match": "WAKE_LOCK",
+      "name": "常驻唤醒",
+      "risk": "medium",
+      "why": "持有唤醒锁，长期阻止系统休眠"
+    },
+    {
+      "match": "POST_NOTIFICATIONS",
+      "name": "发送通知",
+      "risk": "low",
+      "why": "可以推送通知"
+    },
+    {
+      "match": "FOREGROUND_SERVICE",
+      "name": "前台服务",
+      "risk": "low",
+      "why": "可以常驻前台服务"
+    }
+  ],
+  "permissionCombos": [
+    {
+      "name": "悬浮窗+安装应用",
+      "allOf": [
+        "SYSTEM_ALERT_WINDOW",
+        "REQUEST_INSTALL_PACKAGES"
+      ],
+      "risk": "high",
+      "why": "既能悬浮弹窗、又能自己拉起安装其它应用，是推广与流氓类应用的典型组合"
+    },
+    {
+      "name": "安装应用+读取所有应用",
+      "allOf": [
+        "REQUEST_INSTALL_PACKAGES",
+        "QUERY_ALL_PACKAGES"
+      ],
+      "risk": "high",
+      "why": "既能看到手机里装了什么、又能自己装应用，是应用分发与互相唤醒的常见做法"
+    }
+  ],
   "packages": [
     {
       "id": "com.miui.systemAdSolution",
       "name": "MSA 系统广告服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "广告与跟踪",
       "tier": "normal",
       "risk": "low",
@@ -80,7 +161,12 @@
     {
       "id": "com.miui.analytics",
       "name": "系统数据分析与追踪",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "广告与跟踪",
       "tier": "normal",
       "risk": "low",
@@ -92,7 +178,12 @@
     {
       "id": "com.miui.uireporter",
       "name": "UI 行为上报",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "广告与跟踪",
       "tier": "normal",
       "risk": "low",
@@ -104,7 +195,12 @@
     {
       "id": "com.miui.bugreport",
       "name": "系统日志与 Bug 反馈",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "广告与跟踪",
       "tier": "normal",
       "risk": "low",
@@ -116,7 +212,12 @@
     {
       "id": "com.debug.loggerui",
       "name": "调试日志界面",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "广告与跟踪",
       "tier": "normal",
       "risk": "low",
@@ -128,7 +229,12 @@
     {
       "id": "com.xiaomi.aireco",
       "name": "小爱建议与桌面推荐",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "推荐与内容流",
       "tier": "normal",
       "risk": "low",
@@ -140,7 +246,12 @@
     {
       "id": "com.miui.yellowpage",
       "name": "黄页与生活服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "推荐与内容流",
       "tier": "normal",
       "risk": "low",
@@ -152,7 +263,12 @@
     {
       "id": "com.android.browser",
       "name": "系统预装浏览器",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "预装应用",
       "tier": "normal",
       "risk": "low",
@@ -164,7 +280,12 @@
     {
       "id": "com.miui.video",
       "name": "小米视频",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "预装应用",
       "tier": "normal",
       "risk": "low",
@@ -176,7 +297,12 @@
     {
       "id": "com.miui.hybrid",
       "name": "快应用服务框架",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "快应用",
       "tier": "normal",
       "risk": "medium",
@@ -188,7 +314,12 @@
     {
       "id": "com.xiaomi.minigame",
       "name": "小游戏中心",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "游戏与娱乐",
       "tier": "normal",
       "risk": "low",
@@ -200,7 +331,12 @@
     {
       "id": "com.xiaomi.migameservice",
       "name": "米系游戏服务框架",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "游戏与娱乐",
       "tier": "normal",
       "risk": "low",
@@ -212,7 +348,12 @@
     {
       "id": "com.xiaomi.gamecenter.sdk.service",
       "name": "游戏中心 SDK 服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "游戏与娱乐",
       "tier": "normal",
       "risk": "low",
@@ -224,7 +365,12 @@
     {
       "id": "com.mfashiongallery.emag",
       "name": "锁屏画报",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "锁屏内容",
       "tier": "normal",
       "risk": "low",
@@ -236,7 +382,12 @@
     {
       "id": "com.miui.cleanmaster",
       "name": "垃圾清理核心（猎豹）",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "系统清理",
       "tier": "normal",
       "risk": "low",
@@ -248,7 +399,12 @@
     {
       "id": "com.android.quicksearchbox",
       "name": "桌面搜索条",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "系统搜索",
       "tier": "normal",
       "risk": "low",
@@ -260,7 +416,12 @@
     {
       "id": "com.miui.contentcatcher",
       "name": "屏幕内容抓取",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "推荐与内容流",
       "tier": "normal",
       "risk": "low",
@@ -272,7 +433,12 @@
     {
       "id": "com.xiaomi.barrage",
       "name": "视频弹幕浮窗",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "媒体娱乐",
       "tier": "normal",
       "risk": "low",
@@ -284,7 +450,12 @@
     {
       "id": "com.miui.voicetrigger",
       "name": "语音唤醒（麦克风常驻监听）",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "小爱与语音",
       "tier": "normal",
       "risk": "low",
@@ -296,7 +467,12 @@
     {
       "id": "com.xiaomi.aiasst.vision",
       "name": "小爱视觉 / 屏幕识别",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "小爱与语音",
       "tier": "normal",
       "risk": "low",
@@ -308,7 +484,12 @@
     {
       "id": "com.miui.voiceassistoverlay",
       "name": "语音助手浮层",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "小爱与语音",
       "tier": "normal",
       "risk": "low",
@@ -320,7 +501,12 @@
     {
       "id": "com.xiaomi.market",
       "name": "小米应用商店",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "应用分发",
       "tier": "normal",
       "risk": "medium",
@@ -333,7 +519,12 @@
     {
       "id": "com.miui.voiceassist",
       "name": "小爱同学主服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "小爱与语音",
       "tier": "geek",
       "risk": "low",
@@ -345,7 +536,12 @@
     {
       "id": "com.miui.voiceassistProxy",
       "name": "小爱同学代理服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "小爱与语音",
       "tier": "geek",
       "risk": "low",
@@ -357,7 +553,12 @@
     {
       "id": "com.xiaomi.aiasst.service",
       "name": "AI 助手服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "小爱与语音",
       "tier": "geek",
       "risk": "low",
@@ -369,7 +570,12 @@
     {
       "id": "com.xiaomi.aicr",
       "name": "AI 识别与推荐组件",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "小爱与语音",
       "tier": "geek",
       "risk": "low",
@@ -381,7 +587,12 @@
     {
       "id": "com.miui.personalassistant",
       "name": "负一屏 / 智能助理",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "推荐与内容流",
       "tier": "geek",
       "risk": "low",
@@ -393,7 +604,12 @@
     {
       "id": "com.miui.contentextension",
       "name": "传送门 / 内容扩展",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "辅助功能",
       "tier": "geek",
       "risk": "low",
@@ -405,7 +621,12 @@
     {
       "id": "com.xiaomi.macro",
       "name": "自动连招 / 宏指令",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "系统辅助",
       "tier": "geek",
       "risk": "low",
@@ -417,7 +638,12 @@
     {
       "id": "com.miui.thirdappassistant",
       "name": "第三方应用辅助",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "应用增强",
       "tier": "geek",
       "risk": "low",
@@ -429,7 +655,12 @@
     {
       "id": "com.miui.mishare.connectivity",
       "name": "小米互传",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "互联互通",
       "tier": "geek",
       "risk": "low",
@@ -441,7 +672,12 @@
     {
       "id": "com.xiaomi.mi_connect_service",
       "name": "跨设备互联服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "互联互通",
       "tier": "geek",
       "risk": "medium",
@@ -453,7 +689,12 @@
     {
       "id": "com.milink.service",
       "name": "投屏与设备发现服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "互联互通",
       "tier": "geek",
       "risk": "medium",
@@ -465,7 +706,12 @@
     {
       "id": "com.miui.cloudservice",
       "name": "小米云服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "云服务",
       "tier": "geek",
       "risk": "medium",
@@ -477,7 +723,12 @@
     {
       "id": "com.miui.micloudsync",
       "name": "小米云数据同步",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "云服务",
       "tier": "geek",
       "risk": "medium",
@@ -489,7 +740,12 @@
     {
       "id": "com.miui.cloudbackup",
       "name": "小米云备份",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "云服务",
       "tier": "geek",
       "risk": "medium",
@@ -501,7 +757,12 @@
     {
       "id": "com.xiaomi.micloud.sdk",
       "name": "小米云服务 SDK",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "云服务",
       "tier": "geek",
       "risk": "medium",
@@ -513,7 +774,12 @@
     {
       "id": "com.miui.player",
       "name": "小米音乐",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "预装应用",
       "tier": "geek",
       "risk": "low",
@@ -525,7 +791,12 @@
     {
       "id": "com.bsp.catchlog",
       "name": "底层日志收集",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "广告与跟踪",
       "tier": "geek",
       "risk": "medium",
@@ -537,7 +808,12 @@
     {
       "id": "com.android.updater",
       "name": "系统更新（OTA）",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "系统更新",
       "tier": "geek",
       "risk": "high",
@@ -549,7 +825,12 @@
     {
       "id": "com.xiaomi.joyose",
       "name": "性能调度与游戏优化",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "游戏与调度",
       "tier": "geek",
       "risk": "high",
@@ -561,7 +842,12 @@
     {
       "id": "com.xiaomi.mis",
       "name": "小米系统服务",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "系统服务",
       "tier": "geek",
       "risk": "high",
@@ -573,7 +859,10 @@
     {
       "id": "com.vivo.hybrid",
       "name": "vivo 快应用服务",
-      "brands": ["vivo", "iqoo"],
+      "brands": [
+        "vivo",
+        "iqoo"
+      ],
       "category": "快应用",
       "tier": "normal",
       "risk": "medium",
@@ -585,7 +874,10 @@
     {
       "id": "com.vivo.magazine",
       "name": "锁屏杂志",
-      "brands": ["vivo", "iqoo"],
+      "brands": [
+        "vivo",
+        "iqoo"
+      ],
       "category": "锁屏内容",
       "tier": "normal",
       "risk": "low",
@@ -597,7 +889,10 @@
     {
       "id": "com.vivo.game",
       "name": "vivo 游戏中心",
-      "brands": ["vivo", "iqoo"],
+      "brands": [
+        "vivo",
+        "iqoo"
+      ],
       "category": "游戏与娱乐",
       "tier": "normal",
       "risk": "low",
@@ -609,7 +904,10 @@
     {
       "id": "com.vivo.browser",
       "name": "vivo 浏览器",
-      "brands": ["vivo", "iqoo"],
+      "brands": [
+        "vivo",
+        "iqoo"
+      ],
       "category": "预装应用",
       "tier": "normal",
       "risk": "low",
@@ -621,7 +919,10 @@
     {
       "id": "com.vivo.appstore",
       "name": "vivo 应用商店",
-      "brands": ["vivo", "iqoo"],
+      "brands": [
+        "vivo",
+        "iqoo"
+      ],
       "category": "应用分发",
       "tier": "normal",
       "risk": "medium",
@@ -634,7 +935,10 @@
     {
       "id": "com.vivo.assistant",
       "name": "Jovi 智慧助手",
-      "brands": ["vivo", "iqoo"],
+      "brands": [
+        "vivo",
+        "iqoo"
+      ],
       "category": "推荐与内容流",
       "tier": "geek",
       "risk": "low",
@@ -646,7 +950,10 @@
     {
       "id": "com.vivo.voiceassist",
       "name": "Jovi 语音",
-      "brands": ["vivo", "iqoo"],
+      "brands": [
+        "vivo",
+        "iqoo"
+      ],
       "category": "小爱与语音",
       "tier": "geek",
       "risk": "low",
@@ -658,7 +965,10 @@
     {
       "id": "com.bbk.theme",
       "name": "vivo 主题商店",
-      "brands": ["vivo", "iqoo"],
+      "brands": [
+        "vivo",
+        "iqoo"
+      ],
       "category": "主题与壁纸",
       "tier": "geek",
       "risk": "low",
@@ -670,7 +980,11 @@
     {
       "id": "com.nearme.instant.platform",
       "name": "OPPO 快应用平台",
-      "brands": ["oppo", "oneplus", "realme"],
+      "brands": [
+        "oppo",
+        "oneplus",
+        "realme"
+      ],
       "category": "快应用",
       "tier": "normal",
       "risk": "medium",
@@ -682,7 +996,11 @@
     {
       "id": "com.heytap.browser",
       "name": "OPPO 浏览器",
-      "brands": ["oppo", "oneplus", "realme"],
+      "brands": [
+        "oppo",
+        "oneplus",
+        "realme"
+      ],
       "category": "预装应用",
       "tier": "normal",
       "risk": "low",
@@ -694,7 +1012,11 @@
     {
       "id": "com.heytap.market",
       "name": "OPPO 软件商店",
-      "brands": ["oppo", "oneplus", "realme"],
+      "brands": [
+        "oppo",
+        "oneplus",
+        "realme"
+      ],
       "category": "应用分发",
       "tier": "normal",
       "risk": "medium",
@@ -707,7 +1029,11 @@
     {
       "id": "com.heytap.themestore",
       "name": "OPPO 主题商店",
-      "brands": ["oppo", "oneplus", "realme"],
+      "brands": [
+        "oppo",
+        "oneplus",
+        "realme"
+      ],
       "category": "主题与壁纸",
       "tier": "normal",
       "risk": "low",
@@ -719,7 +1045,11 @@
     {
       "id": "com.nearme.gamecenter",
       "name": "OPPO 游戏中心",
-      "brands": ["oppo", "oneplus", "realme"],
+      "brands": [
+        "oppo",
+        "oneplus",
+        "realme"
+      ],
       "category": "游戏与娱乐",
       "tier": "normal",
       "risk": "low",
@@ -731,7 +1061,11 @@
     {
       "id": "com.heytap.music",
       "name": "OPPO 音乐",
-      "brands": ["oppo", "oneplus", "realme"],
+      "brands": [
+        "oppo",
+        "oneplus",
+        "realme"
+      ],
       "category": "预装应用",
       "tier": "normal",
       "risk": "low",
@@ -743,7 +1077,11 @@
     {
       "id": "com.coloros.assistantscreen",
       "name": "OPPO 负一屏智慧助手",
-      "brands": ["oppo", "oneplus", "realme"],
+      "brands": [
+        "oppo",
+        "oneplus",
+        "realme"
+      ],
       "category": "推荐与内容流",
       "tier": "normal",
       "risk": "low",
@@ -755,7 +1093,11 @@
     {
       "id": "com.coloros.gamespace",
       "name": "OPPO 游戏空间",
-      "brands": ["oppo", "oneplus", "realme"],
+      "brands": [
+        "oppo",
+        "oneplus",
+        "realme"
+      ],
       "category": "游戏与娱乐",
       "tier": "geek",
       "risk": "low",
@@ -767,7 +1109,9 @@
     {
       "id": "com.huawei.fastapp",
       "name": "华为快应用中心",
-      "brands": ["huawei"],
+      "brands": [
+        "huawei"
+      ],
       "category": "快应用",
       "tier": "normal",
       "risk": "medium",
@@ -779,7 +1123,10 @@
     {
       "id": "com.hihonor.fastapp",
       "name": "荣耀快应用中心",
-      "brands": ["honor", "hihonor"],
+      "brands": [
+        "honor",
+        "hihonor"
+      ],
       "category": "快应用",
       "tier": "normal",
       "risk": "medium",
@@ -791,7 +1138,9 @@
     {
       "id": "com.huawei.appmarket",
       "name": "华为应用市场",
-      "brands": ["huawei"],
+      "brands": [
+        "huawei"
+      ],
       "category": "应用分发",
       "tier": "normal",
       "risk": "medium",
@@ -804,7 +1153,10 @@
     {
       "id": "com.hihonor.appmarket",
       "name": "荣耀应用市场",
-      "brands": ["honor", "hihonor"],
+      "brands": [
+        "honor",
+        "hihonor"
+      ],
       "category": "应用分发",
       "tier": "normal",
       "risk": "medium",
@@ -817,7 +1169,11 @@
     {
       "id": "com.huawei.browser",
       "name": "华为浏览器",
-      "brands": ["huawei", "honor", "hihonor"],
+      "brands": [
+        "huawei",
+        "honor",
+        "hihonor"
+      ],
       "category": "预装应用",
       "tier": "normal",
       "risk": "low",
@@ -829,7 +1185,11 @@
     {
       "id": "com.huawei.himovie",
       "name": "华为视频",
-      "brands": ["huawei", "honor", "hihonor"],
+      "brands": [
+        "huawei",
+        "honor",
+        "hihonor"
+      ],
       "category": "预装应用",
       "tier": "normal",
       "risk": "low",
@@ -841,7 +1201,11 @@
     {
       "id": "com.huawei.android.hwouc",
       "name": "华为系统更新（OTA）",
-      "brands": ["huawei", "honor", "hihonor"],
+      "brands": [
+        "huawei",
+        "honor",
+        "hihonor"
+      ],
       "category": "系统更新",
       "tier": "geek",
       "risk": "high",
@@ -853,7 +1217,9 @@
     {
       "id": "com.samsung.android.app.spage",
       "name": "三星负一屏",
-      "brands": ["samsung"],
+      "brands": [
+        "samsung"
+      ],
       "category": "推荐与内容流",
       "tier": "normal",
       "risk": "low",
@@ -865,7 +1231,9 @@
     {
       "id": "com.samsung.android.app.tips",
       "name": "三星使用技巧",
-      "brands": ["samsung"],
+      "brands": [
+        "samsung"
+      ],
       "category": "预装应用",
       "tier": "normal",
       "risk": "low",
@@ -877,7 +1245,9 @@
     {
       "id": "com.samsung.android.game.gamehome",
       "name": "三星游戏中心",
-      "brands": ["samsung"],
+      "brands": [
+        "samsung"
+      ],
       "category": "游戏与娱乐",
       "tier": "normal",
       "risk": "low",
@@ -889,7 +1259,9 @@
     {
       "id": "com.sec.android.app.sbrowser",
       "name": "三星浏览器",
-      "brands": ["samsung"],
+      "brands": [
+        "samsung"
+      ],
       "category": "预装应用",
       "tier": "geek",
       "risk": "low",
@@ -901,7 +1273,9 @@
     {
       "id": "com.ss.android.ugc.aweme",
       "name": "抖音",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "后台限制",
       "tier": "geek",
       "risk": "medium",
@@ -910,15 +1284,23 @@
       "reason": "视频流应用大量占用后台网络与解码资源，长时间唤醒导致发热耗电。",
       "impact": "后台行为受限，前台正常使用，不影响收到私信通知。",
       "appOps": [
-        { "op": "WAKE_LOCK", "mode": "ignore" },
-        { "op": "RUN_IN_BACKGROUND", "mode": "ignore" }
+        {
+          "op": "WAKE_LOCK",
+          "mode": "ignore"
+        },
+        {
+          "op": "RUN_IN_BACKGROUND",
+          "mode": "ignore"
+        }
       ],
       "standbyBucket": "restricted"
     },
     {
       "id": "com.ss.android.ugc.aweme.lite",
       "name": "抖音极速版",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "后台限制",
       "tier": "geek",
       "risk": "medium",
@@ -927,15 +1309,23 @@
       "reason": "极速版同样存在长期后台拉流与唤醒，且带推广下载行为。",
       "impact": "后台行为受限，前台正常使用。",
       "appOps": [
-        { "op": "WAKE_LOCK", "mode": "ignore" },
-        { "op": "RUN_IN_BACKGROUND", "mode": "ignore" }
+        {
+          "op": "WAKE_LOCK",
+          "mode": "ignore"
+        },
+        {
+          "op": "RUN_IN_BACKGROUND",
+          "mode": "ignore"
+        }
       ],
       "standbyBucket": "restricted"
     },
     {
       "id": "com.smile.gifmaker",
       "name": "快手",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "后台限制",
       "tier": "geek",
       "risk": "medium",
@@ -944,15 +1334,23 @@
       "reason": "短视频应用长期后台拉流与唤醒。",
       "impact": "后台行为受限，前台正常使用。",
       "appOps": [
-        { "op": "WAKE_LOCK", "mode": "ignore" },
-        { "op": "RUN_IN_BACKGROUND", "mode": "ignore" }
+        {
+          "op": "WAKE_LOCK",
+          "mode": "ignore"
+        },
+        {
+          "op": "RUN_IN_BACKGROUND",
+          "mode": "ignore"
+        }
       ],
       "standbyBucket": "restricted"
     },
     {
       "id": "com.taobao.taobao",
       "name": "淘宝",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "后台限制",
       "tier": "geek",
       "risk": "medium",
@@ -961,15 +1359,23 @@
       "reason": "电商应用的自启链条与后台唤醒频繁，是发热与卡顿的常见来源。",
       "impact": "后台行为受限，前台正常使用。",
       "appOps": [
-        { "op": "WAKE_LOCK", "mode": "ignore" },
-        { "op": "RUN_IN_BACKGROUND", "mode": "ignore" }
+        {
+          "op": "WAKE_LOCK",
+          "mode": "ignore"
+        },
+        {
+          "op": "RUN_IN_BACKGROUND",
+          "mode": "ignore"
+        }
       ],
       "standbyBucket": "restricted"
     },
     {
       "id": "com.jingdong.app.mall",
       "name": "京东",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "后台限制",
       "tier": "geek",
       "risk": "medium",
@@ -978,15 +1384,23 @@
       "reason": "电商应用后台唤醒与推送频繁。",
       "impact": "后台行为受限，前台正常使用。",
       "appOps": [
-        { "op": "WAKE_LOCK", "mode": "ignore" },
-        { "op": "RUN_IN_BACKGROUND", "mode": "ignore" }
+        {
+          "op": "WAKE_LOCK",
+          "mode": "ignore"
+        },
+        {
+          "op": "RUN_IN_BACKGROUND",
+          "mode": "ignore"
+        }
       ],
       "standbyBucket": "restricted"
     },
     {
       "id": "com.xunmeng.pinduoduo",
       "name": "拼多多",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "后台限制",
       "tier": "geek",
       "risk": "medium",
@@ -995,15 +1409,26 @@
       "reason": "后台常驻与相互唤醒链条激进，是老年人手机弹窗与发热的高频来源。",
       "impact": "后台行为受限，前台正常使用。",
       "appOps": [
-        { "op": "WAKE_LOCK", "mode": "ignore" },
-        { "op": "RUN_IN_BACKGROUND", "mode": "ignore" }
+        {
+          "op": "WAKE_LOCK",
+          "mode": "ignore"
+        },
+        {
+          "op": "RUN_IN_BACKGROUND",
+          "mode": "ignore"
+        }
       ],
       "standbyBucket": "restricted"
     },
     {
       "id": "com.xiaomi.scanner",
       "name": "小米扫一扫",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "预装小工具",
       "tier": "geek",
       "risk": "low",
@@ -1015,7 +1440,12 @@
     {
       "id": "com.miui.guardprovider",
       "name": "安全守护（安装校验）",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "安全组件",
       "tier": "normal",
       "risk": "high",
@@ -1027,7 +1457,9 @@
     {
       "id": "com.tencent.mm",
       "name": "微信",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "后台限制",
       "tier": "danger",
       "risk": "high",
@@ -1036,7 +1468,10 @@
       "reason": "限制微信的唤醒锁与后台运行，可以明显降低锁屏待机耗电与发热。",
       "impact": "【务必确认后再勾选】可能导致锁屏后延迟收到消息或漏接语音通话。需要同时打开「允许操作受保护应用」并手动勾选本项。",
       "appOps": [
-        { "op": "WAKE_LOCK", "mode": "ignore" }
+        {
+          "op": "WAKE_LOCK",
+          "mode": "ignore"
+        }
       ],
       "standbyBucket": "restricted"
     }
@@ -1045,18 +1480,33 @@
     {
       "id": "global.animation_scale",
       "name": "系统动画速度",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "流畅度",
       "tier": "normal",
       "risk": "low",
       "action": "settings",
       "confidence": 0.95,
       "namespace": "global",
-      "keys": ["window_animation_scale", "transition_animation_scale", "animator_duration_scale"],
+      "keys": [
+        "window_animation_scale",
+        "transition_animation_scale",
+        "animator_duration_scale"
+      ],
       "choices": [
-        { "label": "0.5x（最快，可能显得生硬）", "value": "0.5" },
-        { "label": "0.75x（推荐，明显更跟手）", "value": "0.75" },
-        { "label": "1x（系统默认）", "value": "1" }
+        {
+          "label": "0.5x（最快，可能显得生硬）",
+          "value": "0.5"
+        },
+        {
+          "label": "0.75x（推荐，明显更跟手）",
+          "value": "0.75"
+        },
+        {
+          "label": "1x（系统默认）",
+          "value": "1"
+        }
       ],
       "defaultChoice": "0.75",
       "reason": "系统默认动画偏慢，老年用户常误以为手机卡顿；调快到 0.75x 可明显提升响应感。",
@@ -1065,14 +1515,20 @@
     {
       "id": "system.peak_refresh_rate",
       "name": "锁定高刷新率（120Hz）",
-      "brands": ["*"],
+      "brands": [
+        "*"
+      ],
       "category": "流畅度",
       "tier": "geek",
       "risk": "medium",
       "action": "settings",
       "confidence": 0.6,
       "namespace": "system",
-      "keys": ["min_refresh_rate", "peak_refresh_rate", "user_refresh_rate"],
+      "keys": [
+        "min_refresh_rate",
+        "peak_refresh_rate",
+        "user_refresh_rate"
+      ],
       "value": "120",
       "reason": "避免应用启动瞬间掉回 60Hz 造成视觉卡顿感。",
       "impact": "耗电会明显增加；屏幕不支持 120Hz 的机型请不要开启。"
@@ -1080,14 +1536,21 @@
     {
       "id": "system.miui_home_animation_rate",
       "name": "桌面极速动画模式",
-      "brands": ["xiaomi", "redmi", "poco", "blackshark"],
+      "brands": [
+        "xiaomi",
+        "redmi",
+        "poco",
+        "blackshark"
+      ],
       "category": "流畅度",
       "tier": "geek",
       "risk": "low",
       "action": "settings",
       "confidence": 0.65,
       "namespace": "system",
-      "keys": ["miui_home_animation_rate"],
+      "keys": [
+        "miui_home_animation_rate"
+      ],
       "value": "1",
       "reason": "MIUI/HyperOS 桌面动画档位，1 为轻快档，减少回弹拖沓。",
       "impact": "仅影响桌面动画手感，随时可改回默认。"
@@ -1120,9 +1583,18 @@
         "*stepcount*"
       ],
       "appOps": [
-        { "op": "BODY_SENSORS", "mode": "ignore" },
-        { "op": "HIGH_SAMPLING_RATE_SENSORS", "mode": "ignore" },
-        { "op": "ACTIVITY_RECOGNITION", "mode": "ignore" }
+        {
+          "op": "BODY_SENSORS",
+          "mode": "ignore"
+        },
+        {
+          "op": "HIGH_SAMPLING_RATE_SENSORS",
+          "mode": "ignore"
+        },
+        {
+          "op": "ACTIVITY_RECOGNITION",
+          "mode": "ignore"
+        }
       ],
       "reason": "摇一摇广告是开屏跳转与误触下载的主要来源，关闭传感器的访问权限可以从源头让它失效。",
       "impact": "被限制的应用里，摇一摇、体感、计步类功能会失效。微信、QQ、地图导航、运动健康类应用已排除，不受影响。"

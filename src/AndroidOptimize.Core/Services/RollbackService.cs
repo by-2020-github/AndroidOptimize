@@ -19,7 +19,8 @@ public sealed class RollbackService
         SnapshotFile snapshot,
         string snapshotPath,
         IProgress<ExecutionProgress>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? devicesRootOverride = null)
     {
         var results = new List<RollbackItemResult>();
         var entries = snapshot.Entries;
@@ -35,7 +36,7 @@ public sealed class RollbackService
 
             var (success, message) = entry.Kind == PlanItemKind.Setting
                 ? await RestoreSettingAsync(entry, ct).ConfigureAwait(false)
-                : await RestorePackageAsync(entry, ct).ConfigureAwait(false);
+                : await RestorePackageAsync(snapshot, entry, devicesRootOverride, ct).ConfigureAwait(false);
 
             results.Add(new RollbackItemResult(entry.Target, entry.DisplayName, success, message));
             if (success) _log.Success($"已还原 {entry.DisplayName}");
@@ -75,7 +76,11 @@ public sealed class RollbackService
             : (false, string.Join("；", failures));
     }
 
-    private async Task<(bool Success, string Message)> RestorePackageAsync(SnapshotEntry entry, CancellationToken ct)
+    private async Task<(bool Success, string Message)> RestorePackageAsync(
+        SnapshotFile snapshot,
+        SnapshotEntry entry,
+        string? devicesRootOverride,
+        CancellationToken ct)
     {
         var messages = new List<string>();
         var failed = false;
@@ -99,17 +104,37 @@ public sealed class RollbackService
 
         if (entry.ActionApplied == PackageAction.Uninstall)
         {
-            var install = await _adb.ShellAsync($"cmd package install-existing --user 0 {entry.Target}", TimeSpan.FromSeconds(90), ct)
-                .ConfigureAwait(false);
-            var text = install.StdOut;
-            if (IsSuccess(install) || text.Contains("installed for user", StringComparison.OrdinalIgnoreCase))
+            // 优先用电脑上的安装包备份：商店安装的应用卸载后安装包就没
+            // 了，install-existing 救不回来，只有备份能装回去。
+            var backup = ApkBackupStore.Find(snapshot.DeviceSerial, entry.Target, devicesRootOverride);
+            if (backup.Count > 0)
             {
-                messages.Add("已恢复安装");
+                var (ok, message) = await ApkBackupStore.InstallAsync(_adb, backup, ct).ConfigureAwait(false);
+                if (ok)
+                {
+                    messages.Add(message);
+                }
+                else
+                {
+                    failed = true;
+                    messages.Add(message);
+                }
             }
             else
             {
-                failed = true;
-                messages.Add($"恢复安装失败：{install.Combined.Trim()}");
+                var install = await _adb.ShellAsync($"cmd package install-existing --user 0 {entry.Target}", TimeSpan.FromSeconds(90), ct)
+                    .ConfigureAwait(false);
+                var text = install.StdOut;
+                if (IsSuccess(install) || text.Contains("installed for user", StringComparison.OrdinalIgnoreCase))
+                {
+                    messages.Add("已用系统里的副本装回");
+                }
+                else
+                {
+                    failed = true;
+                    messages.Add("装不回来：卸载时没有备份安装包，而手机里也没有系统副本了。" +
+                                 "这个应用需要重新下载安装（小米应用商店可以先用「回滚」装回来）。");
+                }
             }
         }
 

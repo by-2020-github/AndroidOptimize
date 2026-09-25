@@ -72,31 +72,47 @@ public sealed class RuleSetFile
     [JsonPropertyName("settings")] public IReadOnlyList<RuleRecord> Settings { get; init; } = [];
     [JsonPropertyName("policies")] public IReadOnlyList<PolicyRecord> Policies { get; init; } = [];
 
-    /// <summary>
-    /// 「不算垃圾」的包名模式（支持 * 通配符）。
-    /// 名单里查不到、但明显是正常应用（地图、健康、出行、办公等）的，不要列进「未知应用」，
-    /// 免得用户一键勾选时误伤。
-    /// </summary>
-    [JsonPropertyName("unknownExclude")] public IReadOnlyList<string> UnknownExclude { get; init; } = [];
+    /// <summary>安装来源包名 → 中文名。表格里直接显示「小米应用商店」比 com.xiaomi.market 有用得多。</summary>
+    [JsonPropertyName("installerNames")] public IReadOnlyDictionary<string, string> InstallerNames { get; init; }
+        = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>懒人模式配置。</summary>
-    [JsonPropertyName("lazyMode")] public LazyModeConfig? LazyMode { get; init; }
+    /// <summary>值得警惕的权限。用来给每个应用打「权限画像」，也用于列表筛选。</summary>
+    [JsonPropertyName("permissionRisks")] public IReadOnlyList<PermissionRisk> PermissionRisks { get; init; } = [];
+
+    /// <summary>值得警惕的权限组合，例如「悬浮窗 + 安装应用」。</summary>
+    [JsonPropertyName("permissionCombos")] public IReadOnlyList<PermissionCombo> PermissionCombos { get; init; } = [];
 }
 
 /// <summary>
-/// 懒人模式：不做任何猜测，只看一份「必须保留」的白名单。
-/// 白名单之外的第三方应用一律加入处理列表——这是给「给长辈收拾手机」准备的。
+/// 一条「值得警惕的权限」。match 用的是权限名里的关键字，例如 SYSTEM_ALERT_WINDOW。
+/// 用途不是自动决策，而是**帮用户快速找到可疑应用**：
+/// 一个名单里查不到的应用，如果同时申请了「安装应用」和「悬浮窗」，基本可以断定是推广类。
 /// </summary>
-public sealed record LazyModeConfig
+public sealed record PermissionRisk
 {
-    [JsonPropertyName("name")] public string Name { get; init; } = "懒人模式";
-    [JsonPropertyName("description")] public string? Description { get; init; }
+    [JsonPropertyName("match")] public required string Match { get; init; }
+    /// <summary>显示用的短名，例如「悬浮窗」。</summary>
+    [JsonPropertyName("name")] public required string Name { get; init; }
+    [JsonPropertyName("risk")] public RiskLevel Risk { get; init; } = RiskLevel.Medium;
+    /// <summary>为什么值得警惕。</summary>
+    [JsonPropertyName("why")] public string? Why { get; init; }
+}
 
-    /// <summary>
-    /// 必须保留的包名模式（支持 * 通配符）。
-    /// 保护名单里的应用会自动保留，不用在这里重复写。
-    /// </summary>
-    [JsonPropertyName("keep")] public IReadOnlyList<string> Keep { get; init; } = [];
+/// <summary>
+/// 一组「凑在一起就很可疑」的权限。单条权限命中太多（真机上「读取所有应用」能命中三分之一的应用），
+/// 单独拿来筛没什么用；组合起来才是个准的信号：
+/// 一个应用同时要了「悬浮窗」和「安装应用」，基本就是推广类应用。
+/// </summary>
+public sealed record PermissionCombo
+{
+    /// <summary>筛选下拉里显示的名字，例如「悬浮窗+安装应用」。</summary>
+    [JsonPropertyName("name")] public required string Name { get; init; }
+
+    /// <summary>必须同时命中的权限关键字，取值同 <see cref="PermissionRisk.Match"/>。</summary>
+    [JsonPropertyName("allOf")] public IReadOnlyList<string> AllOf { get; init; } = [];
+
+    [JsonPropertyName("risk")] public RiskLevel Risk { get; init; } = RiskLevel.High;
+    [JsonPropertyName("why")] public string? Why { get; init; }
 }
 
 /// <summary>

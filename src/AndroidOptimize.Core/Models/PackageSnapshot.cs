@@ -11,6 +11,10 @@ public sealed record PackageEntry
 
     public string? VersionName { get; init; }
     public string? Installer { get; init; }
+
+    /// <summary>应用在桌面上显示的名字（从 APK 里读出来的）。读不到就是 null。</summary>
+    public string? Label { get; init; }
+
     public DateTimeOffset? FirstInstallTime { get; init; }
     public DateTimeOffset? LastUpdateTime { get; init; }
     public string? CodePath { get; init; }
@@ -22,6 +26,20 @@ public sealed record PackageEntry
     /// null = 这台设备的输出里没有这个字段，无从判断。
     /// </summary>
     public bool? NeverLaunched { get; init; }
+
+    /// <summary>
+    /// 这个应用在桌面上有没有图标（有 LAUNCHER 入口）。
+    /// null = 没读到（例如关掉了深度扫描）。
+    /// 「没有图标」是很硬的信号：用户根本打不开它，不可能是他日常在用的应用。
+    /// </summary>
+    public bool? HasLauncher { get; init; }
+
+    /// <summary>
+    /// 应用申请的权限列表（dumpsys package 里的 requested permissions 段）。
+    /// 和安装来源一样，只有深度扫描到的应用才有；null = 没读到，不是「没有权限」。
+    /// 用途是按权限筛查可疑应用，见 <see cref="PermissionAdvice"/>。
+    /// </summary>
+    public IReadOnlyList<string>? Permissions { get; init; }
 
     public PackagePresence Presence =>
         RemovedForUser ? PackagePresence.RemovedForUser

@@ -7,7 +7,8 @@ public static class ReportWriter
 {
     public static string WriteScanReport(PackageSnapshot snapshot, RuleRepository rules, string? path = null)
     {
-        path ??= AppPaths.NewReportPath(snapshot.Device.DisplayName);
+        // 报告按手机分目录：给别人优化多台手机时，每台的报告都在自己的目录里。
+        path ??= AppPaths.NewReportPath(snapshot.Device.DisplayName, serial: snapshot.Device.Serial);
         var text = new StringBuilder();
 
         text.AppendLine("# 手机体检报告");
@@ -80,7 +81,7 @@ public static class ReportWriter
 
     public static string WriteExecutionReport(ExecutionReport report, OptimizationPlan plan, string? path = null)
     {
-        path ??= AppPaths.NewReportPath(report.Device.DisplayName);
+        path ??= AppPaths.NewReportPath(report.Device.DisplayName, serial: report.Device.Serial);
         var text = new StringBuilder();
 
         text.AppendLine("# 优化执行报告");

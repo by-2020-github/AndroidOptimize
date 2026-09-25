@@ -13,6 +13,15 @@ public sealed class OptimizationExecutor
     private readonly SnapshotStore _snapshots;
     private readonly RunLogger _log;
 
+    /// <summary>
+    /// 卸载前是否把安装包备份到电脑。默认开——商店安装的应用卸载后安装包会被系统删掉，
+    /// 不备份就再也装不回来了。
+    /// </summary>
+    public bool BackupApksBeforeUninstall { get; init; } = true;
+
+    /// <summary>档案根目录覆盖（自检用，避免把测试的备份混进真实数据）。</summary>
+    public string? DevicesRootOverride { get; init; }
+
     public OptimizationExecutor(AdbClient adb, SnapshotStore snapshots, RunLogger log)
     {
         _adb = adb;
@@ -48,7 +57,9 @@ public sealed class OptimizationExecutor
         progress?.Report(new ExecutionProgress(0, selected.Count + 1, "正在记录可回滚快照…"));
         _log.Step($"开始执行：档位 {plan.Tier}，共 {selected.Count} 项。");
 
-        var snapshot = await CaptureSnapshotAsync(plan, selected, ct).ConfigureAwait(false);
+        // 备份失败的应用要真的跳过执行，不能只是记一笔——那正是「卸载了装不回来」的成因。
+        var backupSkipped = new List<string>();
+        var snapshot = await CaptureSnapshotAsync(plan, selected, backupSkipped, ct).ConfigureAwait(false);
         var snapshotPath = _snapshots.Save(snapshot);
         _log.Success($"已保存回滚快照：{snapshotPath}");
 
@@ -58,6 +69,19 @@ public sealed class OptimizationExecutor
             ct.ThrowIfCancellationRequested();
             index++;
             progress?.Report(new ExecutionProgress(index, selected.Count + 1, $"正在处理：{item.DisplayName}", item));
+
+            if (backupSkipped.Contains(item.Target, StringComparer.OrdinalIgnoreCase))
+            {
+                _log.Warn($"跳过 {item.DisplayName}：安装包备份失败，卸载后将无法恢复。");
+                results.Add(new ExecutionItemResult
+                {
+                    Item = item,
+                    Status = ActionStatus.Skipped,
+                    Message = "安装包备份失败，为避免卸载后无法恢复，已跳过。可以先用「停用」代替。",
+                });
+                continue;
+            }
+
             _log.Step($"[{index}/{selected.Count}] {item.ActionText} · {item.DisplayName}（{item.Target}）");
             var result = await ExecuteItemAsync(item, ct).ConfigureAwait(false);
             results.Add(result);
@@ -89,7 +113,11 @@ public sealed class OptimizationExecutor
         return report;
     }
 
-    private async Task<SnapshotFile> CaptureSnapshotAsync(OptimizationPlan plan, IReadOnlyList<PlanItem> items, CancellationToken ct)
+    private async Task<SnapshotFile> CaptureSnapshotAsync(
+        OptimizationPlan plan,
+        IReadOnlyList<PlanItem> items,
+        List<string> backupSkipped,
+        CancellationToken ct)
     {
         var entries = new List<SnapshotEntry>();
         foreach (var item in items)
@@ -111,20 +139,58 @@ public sealed class OptimizationExecutor
                     Kind = item.Kind,
                     Target = item.Target,
                     DisplayName = item.DisplayName,
-                    ActionApplied = item.Action,
+                    ActionApplied = item.EffectiveAction,
                     SettingsBefore = before,
                 });
             }
             else
             {
+                // 卸载前先备份安装包：商店安装的应用被卸载时，安装包会被系统一起删掉，
+                // 没有备份就再也装不回来（`install-existing` 只对系统分区上的应用有效）。
+                // 系统预装应用不用备份——系统分区上还有原样副本。
+                string? backupDirectory = null;
+                long backupBytes = 0;
+                if (item.EffectiveAction == PackageAction.Uninstall && BackupApksBeforeUninstall && !item.IsSystem)
+                {
+                    var (ok, message, files) = await ApkBackupStore
+                        .CreateAsync(_adb, plan.Device.Serial, item.Target, DevicesRootOverride, ct)
+                        .ConfigureAwait(false);
+
+                    if (ok)
+                    {
+                        backupDirectory = ApkBackupStore.DirectoryFor(plan.Device.Serial, item.Target, DevicesRootOverride);
+                        backupBytes = ApkBackupStore.SizeOf(files);
+                        _log.Info($"备份安装包：{item.DisplayName}（{message}）");
+                    }
+                    else
+                    {
+                        // 备份失败不能硬着头皮卸载——那正是「卸载了装不回来」的成因。
+                        _log.Error($"备份安装包失败，已跳过卸载 {item.DisplayName}：{message}");
+                        backupSkipped.Add(item.Target);
+                        entries.Add(new SnapshotEntry
+                        {
+                            Kind = item.Kind,
+                            Target = item.Target,
+                            DisplayName = item.DisplayName,
+                            ActionApplied = PackageAction.Keep,   // 什么都没做，回滚时也不需要动它
+                            PresenceBefore = item.PresenceBefore,
+                            WasDisabled = item.PresenceBefore == PackagePresence.Disabled,
+                        });
+                        continue;
+                    }
+                }
+
                 entries.Add(new SnapshotEntry
                 {
                     Kind = item.Kind,
                     Target = item.Target,
                     DisplayName = item.DisplayName,
-                    ActionApplied = item.Action,
+                    ActionApplied = item.EffectiveAction,
                     PresenceBefore = item.PresenceBefore,
                     WasDisabled = item.PresenceBefore == PackagePresence.Disabled,
+                    IsSystem = item.IsSystem,
+                    ApkBackupDirectory = backupDirectory,
+                    ApkBackupBytes = backupBytes,
                     AppOps = item.AppOps,
                     StandbyBucket = item.StandbyBucket,
                 });
@@ -151,7 +217,7 @@ public sealed class OptimizationExecutor
         {
             return item.Kind == PlanItemKind.Setting
                 ? await ApplySettingAsync(item, ct).ConfigureAwait(false)
-                : item.Action switch
+                : item.EffectiveAction switch
                 {
                     PackageAction.Disable => await ApplyDisableAsync(item, ct).ConfigureAwait(false),
                     PackageAction.Uninstall => await ApplyUninstallAsync(item, ct).ConfigureAwait(false),
@@ -415,14 +481,14 @@ public sealed class OptimizationExecutor
             }
 
             bool verified;
-            if (item.Action == PackageAction.Restrict)
+            if (item.EffectiveAction == PackageAction.Restrict)
             {
                 // 回读第一个 appOp 就能确认这批限制是否真的下发成功。
                 verified = await VerifyAppOpAsync(item, ct).ConfigureAwait(false);
             }
             else
             {
-                verified = item.Action switch
+                verified = item.EffectiveAction switch
                 {
                     PackageAction.Disable when disabled is not null => disabled.Contains(item.Target),
                     PackageAction.Uninstall when installed is not null => !installed.Contains(item.Target),
@@ -434,7 +500,7 @@ public sealed class OptimizationExecutor
             {
                 Verified = verified,
                 VerifyDetail = verified
-                    ? (item.Action == PackageAction.Restrict ? "已回读确认限制生效。" : "已回读确认生效。")
+                    ? (item.EffectiveAction == PackageAction.Restrict ? "已回读确认限制生效。" : "已回读确认生效。")
                     : "回读状态与预期不一致，系统可能已自动恢复该项。",
             };
         }
